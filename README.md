@@ -20,7 +20,7 @@ CCFLAGS     := -O3 -g
 LD          := ${CC}
 
 ${TARGET} : ${C_OBJS}
-    ${LD} -o $@ $<
+    ${LD} -o $@ ${C_OBJS}
 
 %.o : %.c
     ${CC} ${CFLAGS} $< -o $@
@@ -35,8 +35,10 @@ C_OBJS      = patsubst('%.c', '%.o', C_SRC)
 TARGET      = "hello"
 CC          = "gcc"
 CCFLAGS     = "-O3 -g"
+LD          = CC
 
 def target__recipe(rule) :
+    os.system(LD + "-o " + rule.target + C_OBJS)
 
 Rule(
     TARGET,

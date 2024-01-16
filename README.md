@@ -70,7 +70,19 @@ hope that simple GNU makefiles can easily be ported to pmake.)
 1. Support pattern matching semantics in Rules
 1. Inclusion of other Makefiles (for common code and for hierarchical makefiles)
 
-## Replicated features of GNU make
+## Replicated features of GNU make (strengths of GNU make)
+
+The main benefit of make (in the author's perspective), is the target-prerequisites-recipe
+semantic.  The construction of targets are self-documenting.  And if rules
+are written correctly, the target will always be correctly built whenever
+any of the prerequisites change. 
+
+This pattern has been used for decades and is a proven method for building projects.
+
+The ability to include other makefiles enables code re-use, hierarchical build
+processes ...  MORE TEXT HERE
+
+
 
 
 ## Non-replicated features of GNU make  (weaknesses of GNU make)
@@ -89,4 +101,26 @@ then used in the `<target> : <orerequisite>` portion of a Rule.  However, using 
 make variable name in a recipe is problematic.  Expansion of the make variable 
 within a recipe is prone to error.
 
-Lack of data structures.
+Lack of data structures.  In order to have some support of larger data 
+strucutres,  one needs to use a library. The GNU Makse Standard Library 
+is one such library,  but its usage is a bit difficult.  We do not intend to
+replicate the GMSL functionality in this project.  Use the native structures
+to build useful higher-level structures.  (This is the purpose of this
+project, after all.)
+
+Backslashitis.  Anyone who has written a recipe for a GNU make rule,  knows
+the pain of having to use backslashes for line continuation in the recipe. 
+Recipes in GNU make are one long bash command line.  To make them readable,
+a backslash + newline is used.  But this leads to numerous problems.  First,
+if you have something,  even a space, after the backslash,  you get a bash syntax
+error.  And the error is seldom obvious.  bash line numbers (in the bash error 
+message) for the recipe are meaningless.  Second, and more tedious,  it's hard
+to keep the backslashes from looking ragged.  Third,  it's easy to forget a 
+backslash, which may or may not lead to a syntax error.
+
+
+## Testing pmake and the `TEST_DIR_ROOT/` directory
+
+In a bit of irony,  the test mechanism used to drive the testin of pmake is ... GNU make.
+Why?  Well, GNU make works.  
+

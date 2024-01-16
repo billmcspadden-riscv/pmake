@@ -20,6 +20,7 @@ CCFLAGS     := -O3 -g
 LD          := ${CC}
 
 ${TARGET} : ${C_OBJS}
+    echo "building ${TARGET}" >> logfile    # echo with output redirection
     ${LD} -o $@ ${C_OBJS}
 
 %.o : %.c
@@ -49,7 +50,7 @@ Rule(
     )
 
 def c_compile__recipe(rule) :
-    echo("building " + rule.target, ">>", "logfile")
+    echo("building " + rule.target, ">>", "logfile")    # echo with output redirection
     os,system(CC + " " + CCFLAGS + " " + rule.prerequisites + " " + " -o" + rule.target)
 
 Rule("%.o", "%.c", c_compile__recipe)

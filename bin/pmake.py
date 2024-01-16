@@ -1,6 +1,39 @@
 #! /usr/bin/env python3
+# vim: set tabstop=4 shiftwidth=4 expandtab set textwidth=79
+# ===========================================================================79
+# Filename:     pmake.py
+#
+# Description:  Python script used as a replacement for GNU make
+#
+#               GNU Makefiles are replaceed with native python script fragments
+#               using the classes, functions, variables and semantics found in
+#               this file.
+#
+#               High level flow:
+#                   pmake.py -f <makefile.py>    plus other switches
+#                       process command line arguments
+#                       process makefile(s) using exec() calls
+#                       invoke make
+#                           build list of targets
+#                               expand "%" targets/prereq into individual targets
+#                               build interconnection graph of targets
+#                               build build-list
+#                           run the build
+#                       cleanup and exit
+#                       
+#
+#
+# Author(s):    Bill McSpadden (bill@riscv.org)
+#
+# History:      See revision control log
+# ===========================================================================79
 
-# Names already in use:  pymake, pmake
+
+
+
+
+#============================================================================79
+# Names already in use:  pymake, pmake, makepy
 #   TODO: need to find another name for this toolsuite
 
 import os               # needed for os command interactions
@@ -226,6 +259,12 @@ def print_usage(invocation) :
 #   are the extra arguments on the command line that are
 #   not defined options.
 #
+#   All in all, it doesn't appear that getopt allows me to build
+#   command line arguments that match GNU make,  and I really want
+#   that.  I want the migration from GNU make to pmake to be as
+#   straightforward as possible
+#
+#
 #opts, args = getopt.getopt(sys.argv[1:], "huf:", ["makefile="])
 #print("opts: " + str(opts))
 #for opt, arg in opts :
@@ -249,7 +288,7 @@ for i in range(1, len(sys.argv)) :
         skip_next = False
         continue
     arg = sys.argv[i]
-    TRACE("i: " + str(i) + " arg: " + arg)
+#    TRACE("i: " + str(i) + " arg: " + arg)
     if (arg == '-h') or (arg == '-u') :
         print_usage(sys.argv[0])
         sys.exit(0)
@@ -305,6 +344,12 @@ for i in range(1, len(sys.argv)) :
         changedir       = True
         changedir_dir   = arg_next
         skip_next       = True
+
+    elif re.search('\S+=\S+', arg) != None :
+        m = re.match('(\S+)=(\S+)', arg)
+        TRACE( "setting up a variable from the command line: " + m.group(1) + " = " + m.group(2) )
+        exec(m.group(1) + " = " + 'm.group(2)')
+
 
     else :
         # TODO:  fill out

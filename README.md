@@ -136,19 +136,11 @@ is not much better than defining the (usually short) function ahead of the Rule 
 
 ## Testing pmake and the `TEST_DIR_ROOT/` directory
 
-In a bit of irony,  the test mechanism used to drive the testin of pmake is ... GNU make.
-Why?  Well, GNU make works.  
-:w
+See TESTING.md
 
 ## Coding Style
 
-See https://peps.python.org/pep-0008/
-
-Additions and modifications to the coding style:
-
-- At the top of the python file,  add the following:
-    - for vim: `# vim: set tabstop=4 shiftwidth=4 expandtab set textwidth=79`
-    - for emacs: ` `
+See CODING_STYLE.md
 
 ## Overall flow
 

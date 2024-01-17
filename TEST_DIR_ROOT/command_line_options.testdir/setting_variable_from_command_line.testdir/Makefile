@@ -51,10 +51,22 @@ TEST_DIR_PATH	:= $(shell 														\
 		fi;																		\
 	)
 
+# Use the GNU Make Standard Library.  It provides a Make API
+#	for useful data structures and functions.
+include ${TEST_DIR_PATH}/lib/gmsl.git/gmsl
+
 PMAKE_PATH		:= ${TEST_DIR_PATH}/../bin/pmake.py
 
-LOGFILE					:= logfile.txt
-COMMAND_LINE_VARIABLE	:= foobar
+# ===========================================================================
+# Test
+PMAKE_MAKEFILE					:= Makefile.py
+ENV_PMAKE_CMD_LINE_VAR_NAME		:= COMMAND_LINE_VARIABLE
+ENV_PMAKE_CMD_LINE_VAR_VAL 		:= foobar
+# generate uniq testname for this test. add to assoc test array
+LOGFILE							:= logfile.txt
+
+# ===========================================================================
+# Print out usefule Makefile variables
 
 $(info ============================================)
 $(info Makefile Variables:)
@@ -89,33 +101,55 @@ build:
 
 install:
 
+
+# TODO: need to add a check for a variable set to a number
+# TODO: need to add a test for a variable not being set (and that it
+#		can be optionally created and set within a pmake makefile
 run:
-	${PMAKE_PATH} LOGFILE=${LOGFILE} COMMAND_LINE_VARIABLE=${COMMAND_LINE_VARIABLE} >> ${LOGFILE} ; \
+	# Set env vars so that the pmake makefile can see what the values	\
+	#	from the command line are supposed to be.						\
+	export ENV_PMAKE_CMD_LINE_VAR_NAME=${ENV_PMAKE_CMD_LINE_VAR_NAME} ; \
+	export ENV_PMAKE_CMD_LINE_VAR_VAL=${ENV_PMAKE_CMD_LINE_VAR_VAL} ; 	\
+	${PMAKE_PATH} LOGFILE=${LOGFILE} ${ENV_PMAKE_CMD_LINE_VAR_NAME}=${ENV_PMAKE_CMD_LINE_VAR_VAL} >> ${LOGFILE} ; \
 	if [ $$? -ne 0 ] ; 																					\
 		then 																							\
+		# stdout must go into logfile,  not test.failed. test.failed and test.passed are only			\
+		# created in the check target.																	\
 		echo "error (GNU make): setting_variable_from_command_line test failed with nonzero exit code" >> ${LOGFILE}    ; 		\
+	else																											\
+		echo "(GNU make) pmake exited with a zero exit status. yay" >> ${LOGFILE} ; 											\
 		fi ;
 
 check:
 	rm -f test.passed test.failed ;
-	bn=`basename $$PWD` ;						\
-	if ! [ -e ${LOGFILE} ] ;					\
-		then									\
+	bn=`basename $$PWD` ;																							\
+	if ! [ -e ${LOGFILE} ] ;																						\
+		then																										\
 		echo "FAILED: (GNU make): $${bn} test failed.  no logfile after 'make run': ${LOGFILE}" >> test.failed ; 	\
-		exit 1  ;																								\
-		fi ;																									\
-	grep --ignore-case error ${LOGFILE} ;		\
-	if [ $$? -eq 0 ] ;							\
-		then									\
-		echo "error (GNU make): $${bn} test failed.  keyword 'error' found in logfile: ${LOGFILE}" >> test.failed ; 	\
-		fi ;																											\
-	if ! [ -e test.failed ] ;					\
-		then									\
-		echo "PASSED: (GNU_MAKE): $${bn}" >> test.passed ;	\
+		exit 1  ;																									\
+		fi ;																										\
+	grep --ignore-case --quiet error ${LOGFILE} ;																	\
+	if [ $$? -eq 0 ] ;																								\
+		then																										\
+		echo "error (GNU make): $${bn} test failed.  keyword 'error' found in logfile: ${LOGFILE}" >> test.failed ;	\
+		fi ;																										\
+	grep               --quiet COMMAND_LINE_VARIABLE ${LOGFILE} ;													\
+	if [ $$? -eq 1 ] ;																								\
+		then																										\
+		echo "error (GNU make): $${bn} test failed.  keyword 'COMMAND_LINE_VARIABLE' not found in logfile: ${LOGFILE}" >> test.failed ;	\
+		fi ;																										\
+	grep               --quiet LOGFILE ${LOGFILE} ;																	\
+	if [ $$? -eq 1 ] ;																								\
+		then																										\
+		echo "error (GNU make): $${bn} test failed.  keyword 'LOGFILE' not found in logfile: ${LOGFILE}" >> test.failed ;	\
+		fi ;																										\
+	if ! [ -e test.failed ] ;																						\
+		then																										\
+		echo "PASSED: (GNU_MAKE): $${bn}" >> test.passed ;															\
 		fi;
 
 clean:
-	rm -f test.passed test.failed dir_a/test.passed dir_a/test.failed
+	rm -f test.passed test.failed ${LOGFILE}
 
 # Cleans local artifacts and the install location
 clean_all:

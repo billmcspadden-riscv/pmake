@@ -244,14 +244,15 @@ def include(makefile) :
 
 def print_usage(invocation) :
     print(invocation + " usage: " + invocation + " [-h] [-u] [-f <makefile.py>]")
-    print("    -h -u            print out help/usage message")
-    print("    -f, --makefile   use <makefile.py>. multiple -f switches may be given")
-    print("                     if no  makefile is given, pmake looks for ./Makefile.py or ./makefile.py in that order")
-    print("    -d               turn on debugging.  equivalent to '--debug all'")
+    print("    -h -u                     print out help/usage message")
+    print("    -f, --makefile            use <makefile.py>. multiple -f switches may be given")
+    print("                              if no  makefile is given, pmake looks for ./Makefile.py or ./makefile.py in that order")
+    print("    -d                        turn on debugging.  equivalent to '--debug all'")
     print("    --debug [a|b|v|i|j|m|n]   turn on debugging level: all, basic, verbose, implicit, jobs, makefile")
     print("                              this is meant to loosely follow the GNU Make debug pattern")
     print("                              multiple --debug switches allowed")
-    print("    -C <dir>         change to <dir> before searching and reading makefiles")
+    print("    -C/--directory <dir>      change to <dir> before searching and reading makefiles")
+    print("    <var>=<val>               creates or overrides a pmake makefile variable named <var> and assigns it the value, <val>. ")
 
 # Process command line arguments
 # For the following code, I couldn't figure out how to

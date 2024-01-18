@@ -55,15 +55,48 @@ TEST_DIR_PATH	:= $(shell 														\
 #	for useful data structures and functions.
 include ${TEST_DIR_PATH}/lib/gmsl.git/gmsl
 
+uniq_testname = \
+	$(addprefix pmake__,$(shell echo $1 | sed 's/ /_/g' | sed 's/-/_/g' | sed 's/=/_/g' | sed 's/__/_/g'))
+
 PMAKE_PATH		:= ${TEST_DIR_PATH}/../bin/pmake.py
+LOGFILE			:= pmake_logfile.txt
+
+add_test = \
+$(strip \
+$(call set,PMAKE_ARGS_AA,$(call uniq_testname,$1),$1}) \
+$(call set,ENV_VAR_NAME_AA,$(call uniq_testname,$1),$2) \
+$(call set,ENV_VAR_VAL_AA,$(call uniq_testname,$1),$3) \
+$(call set,LOGFILE_AA,$(call uniq_testname,$1),$(call uniq_testname,$1).artifactdir/${LOGFILE}) \
+$(call set_insert,$(call uniq_testname,$1),$4) \
+)
 
 # ===========================================================================
 # Test
 PMAKE_MAKEFILE					:= Makefile.py
+PMAKE_ARGS						:= -f ${PMAKE_MAKEFILE}
+TARGET							:= 
+PMAKE_ARGS						+= ${TARGET}
 ENV_PMAKE_CMD_LINE_VAR_NAME		:= COMMAND_LINE_VARIABLE
 ENV_PMAKE_CMD_LINE_VAR_VAL 		:= foobar
-# generate uniq testname for this test. add to assoc test array
-LOGFILE							:= logfile.txt
+PMAKE_ARGS						+= ${ENV_PMAKE_CMD_LINE_VAR_NAME}=${ENV_PMAKE_CMD_LINE_VAR_VAL} 
+
+TESTLIST	:= $(call add_test,${PMAKE_ARGS},${ENV_PMAKE_CMD_LINE_VAR_NAME},${ENV_PMAKE_CMD_LINE_VAR_VAL},${TESTLIST})
+$(info TESTLIST: ${TESTLIST})
+
+## ===========================================================================
+## Test
+#PMAKE_MAKEFILE					:= Makefile.py
+#ENV_PMAKE_CMD_LINE_VAR_NAME		:= COMMAND_LINE_VARIABLE
+#ENV_PMAKE_CMD_LINE_VAR_VAL 		:= 3
+## generate uniq testname for this test. add to assoc test array
+#LOGFILE							:= logfile.txt
+
+# ===========================================================================
+# Convert gmsl assoc arrays into text suitable for bash assoc arrays
+PMAKE_ARGS_AA_FOR_SH 	:= $(foreach var,${TESTLIST},["$(var)"]="$(call get,PMAKE_ARGS_AA,$(var))" )
+ENV_VAR_NAME_AA_FOR_SH 	:= $(foreach var,${TESTLIST},["$(var)"]="$(call get,ENV_VAR_NAME_AA,$(var))" )
+ENV_VAR_VAL_AA_FOR_SH 	:= $(foreach var,${TESTLIST},["$(var)"]="$(call get,ENV_VAR_VAL_AA,$(var))" )
+LOGFILE_AA_FOR_SH		:= $(foreach var,${TESTLIST},["$(var)"]="$(call get,LOGFILE_AA,$(var))" )
 
 # ===========================================================================
 # Print out usefule Makefile variables
@@ -74,8 +107,10 @@ $(info     SHELL:                  ${SHELL})
 $(info     TEST_DIR_PATH           ${TEST_DIR_PATH})
 $(info     PMAKE_PATH              ${PMAKE_PATH})
 $(info     LOGFILE                 ${LOGFILE})
-$(info     COMMAND_LINE_VARIABLE   ${COMMAND_LINE_VARIABLE})
+$(info     TESTLIST                ${TESTLIST})
 $(info ============================================)
+
+
 
 
 #===========================================================================
@@ -83,43 +118,72 @@ $(info ============================================)
 
 default:
 	@echo "supported Makefile targets:";
-	@echo "   all";
+	@echo "   default -       this target"
 	@echo "   build -         compile/build the object";
 	@echo "   run -           run the built object";
-	@echo "   install -       install object into a location";
 	@echo "   check -         check if the run passed or failed";
 	@echo "   clean -         remove local artifacts";
-	@echo "   clean_all -     same as 'clean' but also removes installed objects";
-	@echo "   default -       this target"
 
+TESTDIRS = $(wildcard *.testdirs)
 
-all:
-
-
-build:
-
-
-install:
-
-
-# TODO: need to add a check for a variable set to a number
-# TODO: need to add a test for a variable not being set (and that it
-#		can be optionally created and set within a pmake makefile
+.PHONY: run
 run:
-	# Set env vars so that the pmake makefile can see what the values	\
-	#	from the command line are supposed to be.						\
-	export ENV_PMAKE_CMD_LINE_VAR_NAME=${ENV_PMAKE_CMD_LINE_VAR_NAME} ; \
-	export ENV_PMAKE_CMD_LINE_VAR_VAL=${ENV_PMAKE_CMD_LINE_VAR_VAL} ; 	\
-	${PMAKE_PATH} LOGFILE=${LOGFILE} ${ENV_PMAKE_CMD_LINE_VAR_NAME}=${ENV_PMAKE_CMD_LINE_VAR_VAL} >> ${LOGFILE} ; \
-	if [ $$? -ne 0 ] ; 																					\
-		then 																							\
-		# stdout must go into logfile,  not test.failed. test.failed and test.passed are only			\
-		# created in the check target.																	\
-		echo "error (GNU make): setting_variable_from_command_line test failed with nonzero exit code" >> ${LOGFILE}    ; 		\
-	else																											\
-		echo "(GNU make) pmake exited with a zero exit status. yay" >> ${LOGFILE} ; 											\
-		fi ;
+	@echo "making \"$@\" in $$PWD" ;
+	@for testdir in ${TESTDIRS}; 										\
+		do																\
+		if [ ! -e $$testdir/Makefile ] ;								\
+			then														\
+			echo "ERROR: no Makefile in $$testdir." >> test.failed;		\
+			fi ;														\
+		make -C $$testdir $@ ;											\
+		if [ $$? -ne 0 ] ;                                              			\
+			then                                                            		\
+			echo "'make -C $$testdir $@' exited with nonzero exit status" >> test.failed ;	\
+			fi ;																			\
+		done;
+	if [ ! -z "${TESTLIST}" ] ;															\
+		then																		\
+		make run_tests ;															\
+		if [ $$? -ne 0 ] ;                                              			\
+			then                                                            		\
+			echo "'make run_tests' exited with nonzero exit status" >> test.failed ;	\
+			fi ;																			\
+		fi;
 
+
+
+# TODO: redirect stderr to logfile
+# TODO: replace test.failed with something else.  test.failed only used by target 'check'
+.PHONY: run_tests
+run_tests:
+	@echo "making \"$@\" in $$PWD" ;
+	declare -A pmake_args_aa=( ${PMAKE_ARGS_AA_FOR_SH} ) ; 				\
+	declare -A env_var_name_aa=( ${ENV_VAR_NAME_AA_FOR_SH} ) ; 			\
+	declare -A env_var_val_aa=( ${ENV_VAR_VAL_AA_FOR_SH} ) ; 			\
+	declare -A logfile_aa=( ${LOGFILE_AA_FOR_SH} ) ; 					\
+	for testname in ${TESTLIST} ; 										\
+		do 																\
+		mkdir -p $$testname.artifactdir || ( echo "unable to create $$testname.artifactdir" >> test.failed ; exit $$? ; ) ; 	\
+		# Set env vars so that the pmake makefile can see what the values													\
+		#	from the command line are supposed to be.																		\
+		export ENV_PMAKE_CMD_LINE_VAR_NAME=$${env_var_name_aa[$$testname]} ;												\
+		export ENV_PMAKE_CMD_LINE_VAR_VAL=$${env_var_val_aa[$$testname]} ;													\
+		${PMAKE_PATH} $${pmake_args_aa[$$testname]} >> $${logfile_aa[$$testname]} ; 										\
+		if [ $$? -ne 0 ] ; 																									\
+			then 																											\
+			# stdout must go into logfile,  not test.failed. test.failed and test.passed are only							\
+			# created in the check target.																					\
+			echo "error (GNU make): setting_variable_from_command_line test failed with nonzero exit code" >> $${logfile_aa[$$testname]}    ; 		\
+		else																																	\
+			echo "(GNU make) pmake exited with a zero exit status. yay" >> $${logfile_aa[$$testname]} ; 											\
+			fi ;																																\
+		done ;
+
+
+# TODO: Need to handle "expected errors".  That is,  there is a class of
+#		tests were we want to check that an error was detected and reported.
+#		"reported" can mean: 1) that the exit code was non-zero  2) that
+#		the word "error" should appear in the log file.
 check:
 	rm -f test.passed test.failed ;
 	bn=`basename $$PWD` ;																							\
@@ -132,16 +196,6 @@ check:
 	if [ $$? -eq 0 ] ;																								\
 		then																										\
 		echo "error (GNU make): $${bn} test failed.  keyword 'error' found in logfile: ${LOGFILE}" >> test.failed ;	\
-		fi ;																										\
-	grep               --quiet COMMAND_LINE_VARIABLE ${LOGFILE} ;													\
-	if [ $$? -eq 1 ] ;																								\
-		then																										\
-		echo "error (GNU make): $${bn} test failed.  keyword 'COMMAND_LINE_VARIABLE' not found in logfile: ${LOGFILE}" >> test.failed ;	\
-		fi ;																										\
-	grep               --quiet LOGFILE ${LOGFILE} ;																	\
-	if [ $$? -eq 1 ] ;																								\
-		then																										\
-		echo "error (GNU make): $${bn} test failed.  keyword 'LOGFILE' not found in logfile: ${LOGFILE}" >> test.failed ;	\
 		fi ;																										\
 	if ! [ -e test.failed ] ;																						\
 		then																										\

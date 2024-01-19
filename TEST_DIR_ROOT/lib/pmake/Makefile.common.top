@@ -1,0 +1,33 @@
+# vim: set tabstop=4 shiftwidth=4 noexpandtab
+# ================================================================
+# Filename:		Makefile.common.top
+#
+# Description:	Makefile for building and running tests of pmake
+#
+# Author(s):	Bill McSpadden (bill@riscv.org)
+#
+# Revision:		See git log
+#
+# ================================================================
+#
+
+# Use the GNU Make Standard Library.  It provides a Make API
+#	for useful data structures and functions.
+include ${TEST_DIR_PATH}/lib/gmsl.git/gmsl
+
+# uniq_testname: generates a uniq string (no whitespace) based on the parameter passed to
+#	it.  The parameter is usually a list of options passed to the run object (pmake).
+uniq_testname = $(addprefix pmake__,$(shell echo $1 | sed 's/ /_/g' | sed 's/-/_/g' | sed 's/=/_/g' | sed 's/__/_/g'))
+
+PMAKE_PATH		:= ${TEST_DIR_PATH}/../bin/pmake.py
+LOGFILE			:= pmake_logfile.txt
+
+add_test = \
+$(strip \
+$(call set,PMAKE_ARGS_AA,$(call uniq_testname,$1),$1) \
+$(call set,ENV_VAR_NAME_AA,$(call uniq_testname,$1),$2) \
+$(call set,ENV_VAR_VAL_AA,$(call uniq_testname,$1),$3) \
+$(call set,LOGFILE_AA,$(call uniq_testname,$1),$(call uniq_testname,$1).artifactdir/${LOGFILE}) \
+$(call set_insert,$(call uniq_testname,$1),$4) \
+)
+

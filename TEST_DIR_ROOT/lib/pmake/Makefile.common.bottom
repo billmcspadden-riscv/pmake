@@ -44,14 +44,41 @@ default:
 	@echo "   check -         check if the run passed or failed";
 	@echo "   clean -         remove local artifacts";
 
-TESTDIRS = $(wildcard *.testdirs)
+TESTDIRS = $(wildcard *.testdir)
+
+.PHONY: build
+build:
+	@echo "making \"$@\" in $$PWD" ;
+	@exit_code=0 ;                                                      							\
+	for testdir in ${TESTDIRS}; 																	\
+		do																							\
+		if [ ! -d $$testdir ] ;																		\
+			then																					\
+			echo "(GNU Make) error: no $$testdir." ;												\
+			exit_code=1;          																	\
+			continue;																				\
+			fi ;																					\
+		if [ ! -f $$testdir/Makefile ] ;															\
+			then																					\
+			echo "(GNU make): error: no Makefile in $$testdir." ;									\
+			exit_code=1;          																	\
+			continue;																				\
+			fi ;																					\
+		make -C $$testdir $@ ;																		\
+		if [ $$? -ne 0 ] ;                                              							\
+			then                                                            						\
+			echo "(GNU make): error: 'make -C $$testdir $@' exited with nonzero exit status" ;		\
+			exit_code=1;          																	\
+			fi ;																					\
+		done;																						\
+		exit $$exit_code ;
 
 .PHONY: run
 run:
 	@echo "making \"$@\" in $$PWD" ;
 	@for testdir in ${TESTDIRS}; 										\
 		do																\
-		if [ ! -e $$testdir/Makefile ] ;								\
+		if [ ! -f $$testdir/Makefile ] ;								\
 			then														\
 			echo "ERROR: no Makefile in $$testdir." >> test.failed;		\
 			fi ;														\
@@ -103,47 +130,48 @@ run_tests:
 #		tests were we want to check that an error was detected and reported.
 #		"reported" can mean: 1) that the exit code was non-zero  2) that
 #		the word "error" should appear in the log file.
+.PHONY: check
 check :
 	@echo "$$PWD: making \"$@\"" ;
 	@rm -f test.passed test.failed ;
-	@for testdir in ${TESTDIRS}; 										\
-		do																\
-		if [ ! -e $$testdir/Makefile ] ;								\
-			then														\
-			echo "ERROR: no Makefile in $$testdir." >> test.failed;		\
-			fi ;														\
-		make -C $$testdir $@ ;											\
-		if [ $$? -ne 0 ] ;                                              			\
-			then                                                            		\
+	@for testdir in ${TESTDIRS}; 															\
+		do																					\
+		if [ ! -f $$testdir/Makefile ] ;													\
+			then																			\
+			echo "ERROR: no Makefile in $$testdir." >> test.failed;							\
+			fi ;																			\
+		make -C $$testdir $@ ;																\
+		if [ $$? -ne 0 ] ;                                              					\
+			then                                                            				\
 			echo "'make -C $$testdir $@' exited with nonzero exit status" >> test.failed ;	\
 			fi ;																			\
-		if [ -e $$testdir/test.failed ] ;										\
-			then																\
-			echo "ERROR: test.failed exists in $$testdir." >> test.failed;		\
-			cat $$testdir/test.failed >> test.failed ;							\
-			fi ;																\
-		if [ ! -e ./test.failed ] ;												\
-			then																\
-			if [ -e $$testdir/test.passed ] ;									\
-				then															\
-				echo "test.passed exists in $$testdir" >> test.passed ;			\
-				cat $$testdir/test.passed >> test.passed ;						\
-				fi ;															\
-			fi;																	\
+		if [ -f $$testdir/test.failed ] ;													\
+			then																			\
+			echo "ERROR: test.failed exists in $$testdir." >> test.failed;					\
+			cat $$testdir/test.failed >> test.failed ;										\
+			fi ;																			\
+		if [ ! -f ./test.failed ] ;															\
+			then																			\
+			if [ -f $$testdir/test.passed ] ;												\
+				then																		\
+				echo "test.passed exists in $$testdir" >> test.passed ;						\
+				cat $$testdir/test.passed >> test.passed ;									\
+				fi ;																		\
+			fi;																				\
 		done;
 	@for testname in ${TESTLIST} ; 																							\
 		do 																													\
 		# Go through each of testname artifact dirs looking for errors 														\
 		#	in the logfile 																									\
 		artifactdir=$${testname}.artifactdir ; 																				\
-		if [ ! -e $${artifactdir} ; 																						\
+		if [ ! -d $${artifactdir} ]; 																						\
 			then 																											\
 			echo "error: $${artifactdir} not found" >> test.failed; 														\
 		else  																												\
 			rm -f test.passed test.failed ; 																				\
 			pushd $${artifactdir} ; 																						\
 			bn=`basename $$PWD` ;																							\
-			if ! [ -e ${LOGFILE} ] ;																						\
+			if ! [ -f ${LOGFILE} ] ;																						\
 				then																										\
 				echo "FAILED: (GNU make): $${bn} test failed.  no logfile after 'make run': ${LOGFILE}" >> test.failed ; 	\
 				exit 1  ;																									\
@@ -153,7 +181,7 @@ check :
 				then																										\
 				echo "error (GNU make): $${bn} test failed.  keyword 'error' found in logfile: ${LOGFILE}" >> test.failed ;	\
 				fi ;																										\
-			if ! [ -e test.failed ] ;																						\
+			if [ ! -f test.failed ] ;																						\
 				then																										\
 				echo "PASSED: (GNU_MAKE): $${bn}" >> test.passed ;															\
 				fi; 																										\
@@ -165,14 +193,14 @@ check :
 		# Look for test.failed files (test.passed files) in each of the 													\
 		# artifact dirs and sum up the failures and put them in test.failed/test.passed 									\
 		artifactdir=$${testname}.artifactdir ; 																				\
-		if [ -e $$artifactdir/test.failed ] ;																				\
+		if [ -f $$artifactdir/test.failed ] ;																				\
 			then																											\
 			echo "$$artifactdir/test.failed exists." >> test.failed;														\
 			cat $$artifactdir/test.failed >> test.failed ;																	\
 			fi;																												\
-		if [ -e $$artifactdir/test.passed ] ;																				\
+		if [ -f $$artifactdir/test.passed ] ;																				\
 			then																											\
-			if [ -e $$artifactdir/test.failed ] ;																			\
+			if [ -f $$artifactdir/test.failed ] ;																			\
 				then																										\
 				echo "both $$artifactdir/test.failed exists AND $$artifactdir/test.passed exists." >> test.failed;			\
 				cat $$artifactdir/test.failed >> test.failed ;																\
@@ -180,19 +208,54 @@ check :
 				echo "$$PWD/$$artifactdir/test.passed exists." >> test.passed;												\
 				fi; 																										\
 			fi;																												\
-		if [ ! -e $$artifactdir/test.failed ] ;																				\
+		if [ ! -f $$artifactdir/test.failed ] ;																				\
 			then																											\
-			if [ ! -e $$artifactdir/test.passed ] ;																			\
+			if [ ! -f $$artifactdir/test.passed ] ;																			\
 				then																										\
 				echo "neither $$PWD/$$artifactdir/test.failed nor test.passed exists." >> test.failed ; 					\
 				fi ;																										\
 			fi;																												\
 		done ;
 
+.PHONY: clean
 clean:
-	rm -f test.passed test.failed ${LOGFILE} 
-	rm -rf *.artifactdir
-
+	@echo "making \"$@\" in $$PWD" ;
+	@exit_code=0 ;                                                      							\
+	for testdir in ${TESTDIRS}; 																	\
+		do																							\
+		if [ ! -d $$testdir ] ;																		\
+			then																					\
+			echo "(GNU Make) error: no $$testdir." ;												\
+			exit_code=1;          																	\
+			continue;																				\
+			fi ;																					\
+		if [ ! -f $$testdir/Makefile ] ;															\
+			then																					\
+			echo "(GNU make): error: no Makefile in $$testdir." ;									\
+			exit_code=1;          																	\
+			continue;																				\
+			fi ;																					\
+		make -C $$testdir $@ ;																		\
+		if [ $$? -ne 0 ] ;                                              							\
+			then                                                            						\
+			echo "(GNU make): error: 'make -C $$testdir $@' exited with nonzero exit status" ;		\
+			exit_code=1;          																	\
+			fi ;																					\
+		done;																						\
+	# clean up local files/dirs																		\
+	rm -f test.passed test.failed ${LOGFILE} ; 														\
+	if [ $$? -ne 0 ] ;                                              								\
+		then                                                            							\
+		exit_code=1 ;																				\
+		echo "(GNU_MAKE) 'rm <files>' command in $@ failed. Check your dirs." ;						\
+		fi ;																						\
+	rm -rf *.artifactdir ;																			\
+	if [ $$? -ne 0 ] ;                                              								\
+		then                                                            							\
+		exit_code=1 ;																				\
+		echo "(GNU_MAKE) 'rm artifactdir' command in $@ failed. Check your dirs." ;					\
+		fi ;																						\
+	exit $$exit_code ;
 
 
 

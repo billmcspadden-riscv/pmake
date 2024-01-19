@@ -33,7 +33,7 @@ TEST_DIR_PATH_KEYDIR := TEST_DIR_ROOT
 #	particular enviornment.
 TEST_DIR_PATH	:= $(shell 														\
 	sandbox_root=$$PWD ;														\
-	if [[ "$$sandbox_root" =~ /${TEST_DIR_PATH_KEYDIR}/ ]] ; 					\
+	if [[ "$$sandbox_root" =~ ${TEST_DIR_PATH_KEYDIR} ]] ; 						\
 		then 																	\
 		while [ ! `basename $$sandbox_root` == ${TEST_DIR_PATH_KEYDIR} ] ;		\
 			do																	\

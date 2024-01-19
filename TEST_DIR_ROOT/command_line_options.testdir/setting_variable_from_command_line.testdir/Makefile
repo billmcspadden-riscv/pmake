@@ -63,7 +63,7 @@ LOGFILE			:= pmake_logfile.txt
 
 add_test = \
 $(strip \
-$(call set,PMAKE_ARGS_AA,$(call uniq_testname,$1),$1}) \
+$(call set,PMAKE_ARGS_AA,$(call uniq_testname,$1),$1) \
 $(call set,ENV_VAR_NAME_AA,$(call uniq_testname,$1),$2) \
 $(call set,ENV_VAR_VAL_AA,$(call uniq_testname,$1),$3) \
 $(call set,LOGFILE_AA,$(call uniq_testname,$1),$(call uniq_testname,$1).artifactdir/${LOGFILE}) \
@@ -81,15 +81,18 @@ ENV_PMAKE_CMD_LINE_VAR_VAL 		:= foobar
 PMAKE_ARGS						+= ${ENV_PMAKE_CMD_LINE_VAR_NAME}=${ENV_PMAKE_CMD_LINE_VAR_VAL} 
 
 TESTLIST	:= $(call add_test,${PMAKE_ARGS},${ENV_PMAKE_CMD_LINE_VAR_NAME},${ENV_PMAKE_CMD_LINE_VAR_VAL},${TESTLIST})
-$(info TESTLIST: ${TESTLIST})
 
 ## ===========================================================================
-## Test
-#PMAKE_MAKEFILE					:= Makefile.py
-#ENV_PMAKE_CMD_LINE_VAR_NAME		:= COMMAND_LINE_VARIABLE
-#ENV_PMAKE_CMD_LINE_VAR_VAL 		:= 3
-## generate uniq testname for this test. add to assoc test array
-#LOGFILE							:= logfile.txt
+# Test
+PMAKE_MAKEFILE					:= Makefile.py
+PMAKE_ARGS						:= -f ${PMAKE_MAKEFILE}
+TARGET							:= 
+PMAKE_ARGS						+= ${TARGET}
+ENV_PMAKE_CMD_LINE_VAR_NAME		:= COMMAND_LINE_VARIABLE
+ENV_PMAKE_CMD_LINE_VAR_VAL 		:= 3
+PMAKE_ARGS						+= ${ENV_PMAKE_CMD_LINE_VAR_NAME}=${ENV_PMAKE_CMD_LINE_VAR_VAL}
+
+TESTLIST	:= $(call add_test,${PMAKE_ARGS},${ENV_PMAKE_CMD_LINE_VAR_NAME},${ENV_PMAKE_CMD_LINE_VAR_VAL},${TESTLIST})
 
 # ===========================================================================
 # Convert gmsl assoc arrays into text suitable for bash assoc arrays
@@ -163,19 +166,19 @@ run_tests:
 	declare -A logfile_aa=( ${LOGFILE_AA_FOR_SH} ) ; 					\
 	for testname in ${TESTLIST} ; 										\
 		do 																\
-		mkdir -p $$testname.artifactdir || ( echo "unable to create $$testname.artifactdir" >> test.failed ; exit $$? ; ) ; 	\
-		# Set env vars so that the pmake makefile can see what the values													\
-		#	from the command line are supposed to be.																		\
-		export ENV_PMAKE_CMD_LINE_VAR_NAME=$${env_var_name_aa[$$testname]} ;												\
-		export ENV_PMAKE_CMD_LINE_VAR_VAL=$${env_var_val_aa[$$testname]} ;													\
-		${PMAKE_PATH} $${pmake_args_aa[$$testname]} >> $${logfile_aa[$$testname]} ; 										\
-		if [ $$? -ne 0 ] ; 																									\
-			then 																											\
-			# stdout must go into logfile,  not test.failed. test.failed and test.passed are only							\
-			# created in the check target.																					\
-			echo "error (GNU make): setting_variable_from_command_line test failed with nonzero exit code" >> $${logfile_aa[$$testname]}    ; 		\
+		mkdir -p $$testname.artifactdir || ( echo "unable to create $$testname.artifactdir" >> ./${LOGFILE} ; exit $$? ; ) ; 	\
+		# Set env vars so that the pmake makefile can see what the values														\
+		#	from the command line are supposed to be.																			\
+		export ENV_PMAKE_CMD_LINE_VAR_NAME=$${env_var_name_aa[$$testname]} ;													\
+		export ENV_PMAKE_CMD_LINE_VAR_VAL=$${env_var_val_aa[$$testname]} ;														\
+		${PMAKE_PATH} $${pmake_args_aa[$$testname]} >> $${logfile_aa[$$testname]} ; 											\
+		if [ $$? -ne 0 ] ; 																										\
+			then 																												\
+			# stdout must go into logfile,  not test.failed. test.failed and test.passed are only								\
+			# created in the check target.																						\
+			echo "error (GNU make): setting_variable_from_command_line test failed with nonzero exit code" >> $${logfile_aa[$$testname]} ; 		\
 		else																																	\
-			echo "(GNU make) pmake exited with a zero exit status. yay" >> $${logfile_aa[$$testname]} ; 											\
+			echo "(GNU make) pmake exited with a zero exit status. yay" >> $${logfile_aa[$$testname]} ; 										\
 			fi ;																																\
 		done ;
 
@@ -184,7 +187,94 @@ run_tests:
 #		tests were we want to check that an error was detected and reported.
 #		"reported" can mean: 1) that the exit code was non-zero  2) that
 #		the word "error" should appear in the log file.
-check:
+check :
+	@echo "$$PWD: making \"$@\"" ;
+	@rm -f test.passed test.failed ;
+	@for testdir in ${TESTDIRS}; 										\
+		do																\
+		if [ ! -e $$testdir/Makefile ] ;								\
+			then														\
+			echo "ERROR: no Makefile in $$testdir." >> test.failed;		\
+			fi ;														\
+		make -C $$testdir $@ ;											\
+		if [ $$? -ne 0 ] ;                                              			\
+			then                                                            		\
+			echo "'make -C $$testdir $@' exited with nonzero exit status" >> test.failed ;	\
+			fi ;																			\
+		if [ -e $$testdir/test.failed ] ;										\
+			then																\
+			echo "ERROR: test.failed exists in $$testdir." >> test.failed;		\
+			cat $$testdir/test.failed >> test.failed ;							\
+			fi ;																\
+		if [ ! -e ./test.failed ] ;												\
+			then																\
+			if [ -e $$testdir/test.passed ] ;									\
+				then															\
+				echo "test.passed exists in $$testdir" >> test.passed ;			\
+				cat $$testdir/test.passed >> test.passed ;						\
+				fi ;															\
+			fi;																	\
+		done;
+	@for testname in ${TESTLIST} ; 																							\
+		do 																													\
+		# Go through each of testname artifact dirs looking for errors 														\
+		#	in the logfile 																									\
+		artifactdir=$${testname}.artifactdir ; 																				\
+		if [ ! -e $${artifactdir} ; 																						\
+			then 																											\
+			echo "error: $${artifactdir} not found" >> test.failed; 														\
+		else  																												\
+			rm -f test.passed test.failed ; 																				\
+			pushd $${artifactdir} ; 																						\
+			bn=`basename $$PWD` ;																							\
+			if ! [ -e ${LOGFILE} ] ;																						\
+				then																										\
+				echo "FAILED: (GNU make): $${bn} test failed.  no logfile after 'make run': ${LOGFILE}" >> test.failed ; 	\
+				exit 1  ;																									\
+				fi ;																										\
+			grep --ignore-case --quiet error ${LOGFILE} ;																	\
+			if [ $$? -eq 0 ] ;																								\
+				then																										\
+				echo "error (GNU make): $${bn} test failed.  keyword 'error' found in logfile: ${LOGFILE}" >> test.failed ;	\
+				fi ;																										\
+			if ! [ -e test.failed ] ;																						\
+				then																										\
+				echo "PASSED: (GNU_MAKE): $${bn}" >> test.passed ;															\
+				fi; 																										\
+			popd ; 																											\
+			fi ; 																											\
+		done ;
+	@for testname in ${TESTLIST} ; 																							\
+		do 																													\
+		# Look for test.failed files (test.passed files) in each of the 													\
+		# artifact dirs and sum up the failures and put them in test.failed/test.passed 									\
+		artifactdir=$${testname}.artifactdir ; 																				\
+		if [ -e $$artifactdir/test.failed ] ;																				\
+			then																											\
+			echo "$$artifactdir/test.failed exists." >> test.failed;														\
+			cat $$artifactdir/test.failed >> test.failed ;																	\
+			fi;																												\
+		if [ -e $$artifactdir/test.passed ] ;																				\
+			then																											\
+			if [ -e $$artifactdir/test.failed ] ;																			\
+				then																										\
+				echo "both $$artifactdir/test.failed exists AND $$artifactdir/test.passed exists." >> test.failed;			\
+				cat $$artifactdir/test.failed >> test.failed ;																\
+			else 																											\
+				echo "$$PWD/$$artifactdir/test.passed exists." >> test.passed;												\
+				fi; 																										\
+			fi;																												\
+		if [ ! -e $$artifactdir/test.failed ] ;																				\
+			then																											\
+			if [ ! -e $$artifactdir/test.passed ] ;																			\
+				then																										\
+				echo "neither $$PWD/$$artifactdir/test.failed nor test.passed exists." >> test.failed ; 					\
+				fi ;																										\
+			fi;																												\
+		done ;
+
+
+check_old:
 	rm -f test.passed test.failed ;
 	bn=`basename $$PWD` ;																							\
 	if ! [ -e ${LOGFILE} ] ;																						\
@@ -203,7 +293,8 @@ check:
 		fi;
 
 clean:
-	rm -f test.passed test.failed ${LOGFILE}
+	rm -f test.passed test.failed ${LOGFILE} 
+	rm -rf *.artifactdir
 
 # Cleans local artifacts and the install location
 clean_all:

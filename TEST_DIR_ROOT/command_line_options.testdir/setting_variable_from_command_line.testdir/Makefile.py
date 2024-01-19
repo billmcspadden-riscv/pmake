@@ -49,16 +49,16 @@ else:
 if COMMAND_LINE_VARIABLE != ENV_PMAKE_CMD_LINE_VAR_VAL :
     echo("error (pmake): incorrect value for COMMAND_LINE_VARIABLE. expected: " + ENV_PMAKE_CMD_LINE_VAR_VAL + " received: " + COMMAND_LINE_VARIABLE)
 
-# We don't actually use LOGFILE in this test for any specific purpose.
-#   But other tests will typically use the logfile for reporting test
-#   status, especially errors.
-try:
-    LOGFILE
-except NameError:
-    echo("error (pmake): the command line variable, 'LOGFILE', was not set")
-    LOGFILE = "logfile_set_by_pmake.txt"
-else:
-    echo("LOGFILE: " + LOGFILE, ">>", LOGFILE)
+## We don't actually use LOGFILE in this test for any specific purpose.
+##   But other tests will typically use the logfile for reporting test
+##   status, especially errors.
+#try:
+#    LOGFILE
+#except NameError:
+#    echo("error (pmake): the command line variable, 'LOGFILE', was not set")
+#    LOGFILE = "logfile_set_by_pmake.txt"
+#else:
+#    echo("LOGFILE: " + LOGFILE, ">>", LOGFILE)
 
 
 

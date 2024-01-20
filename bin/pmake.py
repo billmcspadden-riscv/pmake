@@ -52,30 +52,6 @@ from abc import ABC, abstractmethod
 #   -D<var>[=val]   define pymake variable; set pymake variable to val
 #   <target>        if none listed, default is first target in pymmakefile
 
-
-# ========================================================
-# ========================================================
-# Functions and definitions and data structures for pymake
-# TODO: call the build/make process
-
-list_of_defined_targets     = list()    # List of "class Target"s
-PHONY                       = True
-targets_to_be_built         = list()    # List of strings,  which are the string names of the targets to be built
-debug                       = ""
-build_order_dq              = list()    # The ordered list (dequeue) of targets to be built
-                                        #   for the targets_to_be_built
-list_of_variables_and_rules = list()    # List of include files
-
-list_of_default_makefiles   = ["makefile.py", "Makefile.py"]
-
-makefile_list               = []
-_debug_makefile             = False
-_debug_jobs                 = False
-_debug_implicit             = False
-_debug_verbose              = False
-_debug_basic                = False
-changedir                   = "./"
-
 # User controlled debug trace statement for debut of pmake
 #   makefiles.
 def TRACE(text = "") :
@@ -106,10 +82,75 @@ def _debug_makefile(text) :
     if (__debug_makefile) :
         print(text)
 
+# ========================================================
+# ========================================================
+# Functions and definitions and data structures for pymake
+# TODO: call the build/make process
+
+#list_of_defined_targets     = list()    # List of "class Target"s
+#PHONY                       = True
+#targets_to_be_built         = list()    # List of strings,  which are the string names of the targets to be built
+#TRACE("targets_to_be_built: " + str(targets_to_be_built))
+#debug                       = ""
+#build_order_dq              = list()    # The ordered list (dequeue) of targets to be built
+#                                        #   for the targets_to_be_built
+#list_of_variables_and_rules = list()    # List of include files
+#
+#list_of_default_makefiles   = ["makefile.py", "Makefile.py"]
+#
+#makefile_list               = []
+#_debug_makefile             = False
+#_debug_jobs                 = False
+#_debug_implicit             = False
+#_debug_verbose              = False
+#_debug_basic                = False
+#changedir                   = "./"
+
+def get_target_class(target_name) :
+    for target_class in list_of_defined_targets :
+        if target_name == target_class.target :
+            return target_class
+        else :
+            continue
+    print("error: don't know how to make '" + target_name + "'. exiting")
+    sys.exit(1)
+
+
+# Recursive function
+# TODO: check for infinite loop
+def construct_build_list(ttb_list) :
+    print("ttb_list: " + str(ttb_list))
+    for ttb in ttb_list :
+        target_class = get_target_class(ttb)
+        print("target_class.target: " + target_class.target)
+        print("target_class.prerequisites: " + str(target_class.prerequisites))
+        for prereq in target_class.prerequisites :
+            # check to see if the prereq has already appeared in the list
+            # TODO:  need to check for circular dependencies
+            for p in ttb_list :
+                TRACE("p: " + p + " prereq: " + prereq);
+                if p == prereq :
+                    TRACE("")
+                    return(ttb_list)
+                else :
+                    continue
+            # prereq was not found.  add to list
+            ttb_list.append(prereq)
+            ttb_list = construct_build_list(ttb_list)
+            return(ttb_list)
+    TRACE("")
+    return(ttb_list)
+            
+
+
 # The main process for building the target(s)
-def make() :
+# TODO: i kept getting errors when trying to access 'targets_to_be_built' as
+#   a global variable.  something about "local variable, 'targets_to_be_built'
+#   not set".  this only popped up after some code refactoring.  figure this
+#   out!!!
+def make(targets_to_be_built) :
     # Process command line arguments
-    print("list_of_defined_targets: " + str(list_of_defined_targets))
+    #print("list_of_defined_targets: " + str(list_of_defined_targets))
     if (len(targets_to_be_built) == 0) :
         # No targets passed on command line.  Default: Find first target in 
         #   list_of_defined_targets and put that into
@@ -117,12 +158,11 @@ def make() :
         targets_to_be_built.append(list_of_defined_targets[0].target)
 
     print("targets_to_be_built: " + str(targets_to_be_built))
-#    print("targets_to_be_built.target : " + targets_to_be_built[0].target)
     # Process the list of targets to see what needs to be built
     #   and in which order.
-#   for t in list(targets_to_be_built) :
-    for t in targets_to_be_built :
-        pass
+    TRACE("targets_to_be_built: " + str(targets_to_be_built))
+    targets_to_be_built = construct_build_list(targets_to_be_built)
+    TRACE("targets_to_be_built: " + str(targets_to_be_built))
 
     # Invoke the build recipe for targets
     target_found = False
@@ -132,6 +172,7 @@ def make() :
             print("t.target: " + t.target)
             if (ttb == t.target) :
                 target_found = True
+                
                 t.recipe(t)
                 break
         if target_found == False :
@@ -254,6 +295,24 @@ def print_usage(invocation) :
     print("    -C/--directory <dir>      change to <dir> before searching and reading makefiles")
     print("    <var>=<val>               creates or overrides a pmake makefile variable named <var> and assigns it the value, <val>. ")
 
+print("Starting up pmake ...")
+list_of_defined_targets     = list()    # List of "class Target"s
+PHONY                       = True
+targets_to_be_built         = list()    # List of strings,  which are the string names of the targets to be built
+debug                       = ""
+build_order_dq              = list()    # The ordered list (dequeue) of targets to be built
+                                        #   for the targets_to_be_built
+list_of_variables_and_rules = list()    # List of include files
+
+list_of_default_makefiles   = ["makefile.py", "Makefile.py"]
+
+makefile_list               = []
+_debug_makefile             = False
+_debug_jobs                 = False
+_debug_implicit             = False
+_debug_verbose              = False
+_debug_basic                = False
+changedir                   = "./"
 # Process command line arguments
 # For the following code, I couldn't figure out how to
 #   extract the target names from the command line.  They
@@ -405,8 +464,7 @@ for makefile in makefile_list :
     else :
         exec(open(makefile).read())
 
-
-make()
+make(targets_to_be_built)
 
 
 

@@ -10,20 +10,9 @@
 #
 # ================================================================
 #
-
-# Makefile.header will give the setting of TEST_DIR_PATH
 include ./Makefile.header
-
-# Makefile.common.top defines the common set of associative arrays
-#	that are used to drive the tests in this directory.  It also
-#	includes helper make "functions" for adding test to a list of
-#	tests that are to be executed.
 include ${TEST_DIR_PATH}/lib/pmake/Makefile.common.top
 
-# Define your tests here
 
-
-# Makefile.common.bottom contains the generic rules needed to
-# 	build and run and check the tests.
 include ${TEST_DIR_PATH}/lib/pmake/Makefile.common.bottom
 

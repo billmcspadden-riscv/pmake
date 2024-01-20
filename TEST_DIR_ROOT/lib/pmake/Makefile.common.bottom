@@ -103,7 +103,7 @@ run:
 .PHONY: run_tests
 run_tests:
 	@echo "making \"$@\" in $$PWD" ;
-	declare -A pmake_args_aa=( ${PMAKE_ARGS_AA_FOR_SH} ) ; 				\
+	@declare -A pmake_args_aa=( ${PMAKE_ARGS_AA_FOR_SH} ) ; 			\
 	declare -A env_var_name_aa=( ${ENV_VAR_NAME_AA_FOR_SH} ) ; 			\
 	declare -A env_var_val_aa=( ${ENV_VAR_VAL_AA_FOR_SH} ) ; 			\
 	declare -A logfile_aa=( ${LOGFILE_AA_FOR_SH} ) ; 					\
@@ -119,10 +119,10 @@ run_tests:
 			then 																												\
 			# stdout must go into logfile,  not test.failed. test.failed and test.passed are only								\
 			# created in the check target.																						\
-			echo "error (GNU make): setting_variable_from_command_line test failed with nonzero exit code" >> $${logfile_aa[$$testname]} ; 		\
-		else																																	\
-			echo "(GNU make) pmake exited with a zero exit status. yay" >> $${logfile_aa[$$testname]} ; 										\
-			fi ;																																\
+			echo "error (GNU make): 'pmake' exited with a non-zero exit status" >> $${logfile_aa[$$testname]} ; 				\
+		else																													\
+			echo "(GNU make) 'pmake' exited with a zero exit status. yay" >> $${logfile_aa[$$testname]} ; 						\
+			fi ;																												\
 		done ;
 
 

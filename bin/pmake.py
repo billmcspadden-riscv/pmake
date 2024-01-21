@@ -115,6 +115,14 @@ def get_target_class(target_name) :
     print("error: don't know how to make '" + target_name + "'. exiting")
     sys.exit(1)
 
+def target_already_in_list(l, t) :
+    for p in l :
+        if p == t :
+            return True
+        else :
+            return False
+    TRACE("error: internal error")
+
 
 # Recursive function
 # TODO: check for infinite loop
@@ -127,16 +135,13 @@ def construct_build_list(ttb_list) :
         for prereq in target_class.prerequisites :
             # check to see if the prereq has already appeared in the list
             # TODO:  need to check for circular dependencies
-            for p in ttb_list :
-                TRACE("p: " + p + " prereq: " + prereq);
-                if p == prereq :
-                    TRACE("")
-                    return(ttb_list)
-                else :
-                    continue
+            if target_already_in_list(ttb_list, prereq) :
+                continue
             # prereq was not found.  add to list
             ttb_list.append(prereq)
+            TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
             ttb_list = construct_build_list(ttb_list)
+            TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
             return(ttb_list)
     TRACE("")
     return(ttb_list)
@@ -162,9 +167,11 @@ def make(targets_to_be_built) :
     #   and in which order.
     TRACE("targets_to_be_built: " + str(targets_to_be_built))
     targets_to_be_built = construct_build_list(targets_to_be_built)
+    targets_to_be_built.reverse()
     TRACE("targets_to_be_built: " + str(targets_to_be_built))
 
     # Invoke the build recipe for targets
+
     target_found = False
     for ttb in targets_to_be_built :
         print("ttb: " + ttb)
@@ -172,7 +179,6 @@ def make(targets_to_be_built) :
             print("t.target: " + t.target)
             if (ttb == t.target) :
                 target_found = True
-                
                 t.recipe(t)
                 break
         if target_found == False :
@@ -193,6 +199,10 @@ def echo(text, append_or_create = ">>", filename = "/dev/null") :
 
     f.write(text + "\n")
     sys.stdout.write(text + "\n")
+
+# GNU make function, '$(info) always goes to stdout
+def info(text) :
+    echo(text, ">>", "/dev/null")
 
 
 
@@ -413,6 +423,7 @@ for i in range(1, len(sys.argv)) :
 
     else :
         # TODO:  fill out
+        TRACE("adding '" + arg + "' to targets_to_be_built")
         targets_to_be_built.append(arg)
 
 
@@ -464,6 +475,7 @@ for makefile in makefile_list :
     else :
         exec(open(makefile).read())
 
+TRACE("targets_to_be_built before call to make(): " + str(targets_to_be_built))
 make(targets_to_be_built)
 
 

@@ -112,8 +112,7 @@ def get_target_class(target_name) :
             return target_class
         else :
             continue
-    print("error: don't know how to make '" + target_name + "'. exiting")
-    sys.exit(1)
+    return(None)
 
 def target_already_in_list(l, t) :
     for p in l :
@@ -127,29 +126,30 @@ def target_already_in_list(l, t) :
 # Recursive function
 # TODO: check for infinite loop
 def construct_build_list(ttb_list) :
-    my_ttb_list = ttb_list
+#    my_ttb_list = ttb_list
     print("ttb_list: " + str(ttb_list))
-    for ttb in my_ttb_list :
-        target_class = get_target_class(ttb)
-        print("target_class.target: " + target_class.target)
-        print("target_class.prerequisites: " + str(target_class.prerequisites))
-        for prereq in target_class.prerequisites :
-            # TODO:  THIS IS ALL WRONG. IT JUST KEEPS BUILDING AND BUILDING
-            #       I THINK THAT WE NEED TO DESCEND TO THE END AND THEN APPEND
-            #       ON THE WAY BACK OUT.
-            # check to see if the prereq has already appeared in the list
-            # TODO:  need to check for circular dependencies
-            if target_already_in_list(ttb_list, prereq) :
-                return(ttb_list)
-                continue    # not taken
-            # prereq was not found.  add to list
-            ttb_list.append(prereq)
-            TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
-            ttb_list = construct_build_list(ttb_list)
-            TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
+#    for ttb in my_ttb_list :    # NO.  DO NOT ITERATE LIKE THIS.  this is recursive.
+                                # only look at the tail,  then recurse
+    target_class = get_target_class(ttb_list[-1])
+    if target_class == None :
+        return(ttb_list)
+    print("target_class.target: " + target_class.target)
+    print("target_class.prerequisites: " + str(target_class.prerequisites))
+    for prereq in target_class.prerequisites :
+        print("prereq: " + str(prereq))
+        if target_already_in_list(ttb_list, prereq) :
             return(ttb_list)
-    TRACE("")
+            continue    # not taken
+        # prereq was not found.  add to list
+        ttb_list.append(prereq)
+        TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
+        ttb_list = construct_build_list(ttb_list)
+        TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
+        return(ttb_list)
+    
     return(ttb_list)
+#   TRACE("error: internal error")
+#   sys.exit(1)
             
 
 
@@ -263,7 +263,7 @@ class Rule:   # base class
         pass
 
     target = "Unnamed"
-    prerequisites = { }
+    prerequisites = list() 
     phony = False 
     target_description = ""
 

@@ -145,7 +145,6 @@ def construct_build_list(ttb_list) :
         TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
         ttb_list = construct_build_list(ttb_list)
         TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
-        return(ttb_list)
     
     return(ttb_list)
 #   TRACE("error: internal error")

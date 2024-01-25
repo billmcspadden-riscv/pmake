@@ -183,7 +183,23 @@ def make(targets_to_be_built) :
             print("t.target: " + t.target)
             if (ttb == t.target) :
                 target_found = True
-                t.recipe(t)
+                if t.phony == True :
+                    # Check to see if target is a PHONY.  If it is,  always invoke
+                    #   the recipe.
+                    t.recipe(t)
+                elif always_make :
+                    # Check to see if targets need to be forced made.
+                    t.recipe(t)
+                # Check to see if prerequisites exist.  Then, check to see if target is 
+                #   older than prerequisites.  If it is,
+                #   then invoke the recipe.
+                elif not os.path.isfile(t.target) :
+                    t.recipe(t)
+                else :
+                    for prereq in t.prerequisites :
+                        if os.path.getmtime(prereq) > os.path.getmtime(t.target) :
+                            t.recipe(t)
+                            break
                 break
         if target_found == False :
             print("error: target '" + str(ttb) + "' not specified")
@@ -307,6 +323,7 @@ def print_usage(invocation) :
     print("                              this is meant to loosely follow the GNU Make debug pattern")
     print("                              multiple --debug switches allowed")
     print("    -C/--directory <dir>      change to <dir> before searching and reading makefiles")
+    print("    -B/--always-make          always rebuild all targets, no matter the timestamps ")
     print("    <var>=<val>               creates or overrides a pmake makefile variable named <var> and assigns it the value, <val>. ")
 
 print("Starting up pmake ...")
@@ -318,7 +335,7 @@ build_order_dq              = list()    # The ordered list (dequeue) of targets 
                                         #   for the targets_to_be_built
 list_of_variables_and_rules = list()    # List of include files
 
-list_of_default_makefiles   = ["makefile.py", "Makefile.py"]
+list_of_default_makefiles   = ["makefile.py", "Makefile.py"]    # This order matches GNU make
 
 makefile_list               = []
 _debug_makefile             = False
@@ -327,6 +344,7 @@ _debug_implicit             = False
 _debug_verbose              = False
 _debug_basic                = False
 changedir                   = "./"
+always_make                 = False
 # Process command line arguments
 # For the following code, I couldn't figure out how to
 #   extract the target names from the command line.  They
@@ -418,6 +436,10 @@ for i in range(1, len(sys.argv)) :
         changedir       = True
         changedir_dir   = arg_next
         skip_next       = True
+
+    elif arg in ('-B', '--always-make') :
+        TRACE("processing -B/--always-make")
+        always_make = True
 
     elif re.search('\S+=\S+', arg) != None :
         m = re.match('(\S+)=(\S+)', arg)

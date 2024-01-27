@@ -101,7 +101,7 @@ naming convention does not allow these as variable names.
 
 Make variables (as opposed to shell variables, used in recipes) and make functions,
 are typically used when building target and prerequisite names.  These names are
-then used in the `<target> : <orerequisite>` portion of a Rule.  However, using the 
+then used in the `<target> : <prerequisite>` portion of a Rule.  However, using the 
 make variable name in a recipe is problematic.  Expansion of the make variable 
 within a recipe is prone to error.
 
@@ -113,7 +113,7 @@ to build useful higher-level structures.  (This is the purpose of this
 project, after all.)
 
 Backslashitis.  Anyone who has written a recipe for a GNU make rule,  knows
-the pain of having to use backslashes for line continuation in the recipe. 
+the pain of having to use backslashes in the recipe for line continuation. 
 Recipes in GNU make are one long bash command line.  To make them readable,
 a backslash + newline is used.  But this leads to numerous problems.  First,
 if you have something,  even a space, after the backslash,  you get a bash syntax
@@ -132,6 +132,11 @@ es needed for running the recipe).  Also,  the recipe function
 definition must exist before the instantiation of the Rule.  Well, that's not quite
 true;  there is a method for forward declaring the function,  but adding that line of code
 is not much better than defining the (usually short) function ahead of the Rule instance.
+
+The code for the recipe is not echoed to stdout before execution, nor can it be turned
+on/off via the '@' character at the beginning of a recipe command.  No effort has been
+made (nor will be made) to recreate this feature of GNU make.:q
+
 
 
 ## Testing pmake and the `TEST_DIR_ROOT/` directory

@@ -112,8 +112,7 @@ def get_target_class(target_name) :
             return target_class
         else :
             continue
-    print("error: don't know how to make '" + target_name + "'. exiting")
-    sys.exit(1)
+    return(None)
 
 def target_already_in_list(l, t) :
     for p in l :
@@ -127,29 +126,29 @@ def target_already_in_list(l, t) :
 # Recursive function
 # TODO: check for infinite loop
 def construct_build_list(ttb_list) :
-    my_ttb_list = ttb_list
+#    my_ttb_list = ttb_list
     print("ttb_list: " + str(ttb_list))
-    for ttb in my_ttb_list :
-        target_class = get_target_class(ttb)
-        print("target_class.target: " + target_class.target)
-        print("target_class.prerequisites: " + str(target_class.prerequisites))
-        for prereq in target_class.prerequisites :
-            # TODO:  THIS IS ALL WRONG. IT JUST KEEPS BUILDING AND BUILDING
-            #       I THINK THAT WE NEED TO DESCEND TO THE END AND THEN APPEND
-            #       ON THE WAY BACK OUT.
-            # check to see if the prereq has already appeared in the list
-            # TODO:  need to check for circular dependencies
-            if target_already_in_list(ttb_list, prereq) :
-                return(ttb_list)
-                continue    # not taken
-            # prereq was not found.  add to list
-            ttb_list.append(prereq)
-            TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
-            ttb_list = construct_build_list(ttb_list)
-            TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
+#    for ttb in my_ttb_list :    # NO.  DO NOT ITERATE LIKE THIS.  this is recursive.
+                                # only look at the tail,  then recurse
+    target_class = get_target_class(ttb_list[-1])
+    if target_class == None :
+        return(ttb_list)
+    print("target_class.target: " + target_class.target)
+    print("target_class.prerequisites: " + str(target_class.prerequisites))
+    for prereq in target_class.prerequisites :
+        print("prereq: " + str(prereq))
+        if target_already_in_list(ttb_list, prereq) :
             return(ttb_list)
-    TRACE("")
+            continue    # not taken
+        # prereq was not found.  add to list
+        ttb_list.append(prereq)
+        TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
+        ttb_list = construct_build_list(ttb_list)
+        TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
+    
     return(ttb_list)
+#   TRACE("error: internal error")
+#   sys.exit(1)
             
 
 
@@ -184,7 +183,23 @@ def make(targets_to_be_built) :
             print("t.target: " + t.target)
             if (ttb == t.target) :
                 target_found = True
-                t.recipe(t)
+                if t.phony == True :
+                    # Check to see if target is a PHONY.  If it is,  always invoke
+                    #   the recipe.
+                    t.recipe(t)
+                elif always_make :
+                    # Check to see if targets need to be forced made.
+                    t.recipe(t)
+                # Check to see if prerequisites exist.  Then, check to see if target is 
+                #   older than prerequisites.  If it is,
+                #   then invoke the recipe.
+                elif not os.path.isfile(t.target) :
+                    t.recipe(t)
+                else :
+                    for prereq in t.prerequisites :
+                        if os.path.getmtime(prereq) > os.path.getmtime(t.target) :
+                            t.recipe(t)
+                            break
                 break
         if target_found == False :
             print("error: target '" + str(ttb) + "' not specified")
@@ -263,7 +278,7 @@ class Rule:   # base class
         pass
 
     target = "Unnamed"
-    prerequisites = { }
+    prerequisites = list() 
     phony = False 
     target_description = ""
 
@@ -308,6 +323,7 @@ def print_usage(invocation) :
     print("                              this is meant to loosely follow the GNU Make debug pattern")
     print("                              multiple --debug switches allowed")
     print("    -C/--directory <dir>      change to <dir> before searching and reading makefiles")
+    print("    -B/--always-make          always rebuild all targets, no matter the timestamps ")
     print("    <var>=<val>               creates or overrides a pmake makefile variable named <var> and assigns it the value, <val>. ")
 
 print("Starting up pmake ...")
@@ -319,7 +335,7 @@ build_order_dq              = list()    # The ordered list (dequeue) of targets 
                                         #   for the targets_to_be_built
 list_of_variables_and_rules = list()    # List of include files
 
-list_of_default_makefiles   = ["makefile.py", "Makefile.py"]
+list_of_default_makefiles   = ["makefile.py", "Makefile.py"]    # This order matches GNU make
 
 makefile_list               = []
 _debug_makefile             = False
@@ -328,6 +344,7 @@ _debug_implicit             = False
 _debug_verbose              = False
 _debug_basic                = False
 changedir                   = "./"
+always_make                 = False
 # Process command line arguments
 # For the following code, I couldn't figure out how to
 #   extract the target names from the command line.  They
@@ -419,6 +436,10 @@ for i in range(1, len(sys.argv)) :
         changedir       = True
         changedir_dir   = arg_next
         skip_next       = True
+
+    elif arg in ('-B', '--always-make') :
+        TRACE("processing -B/--always-make")
+        always_make = True
 
     elif re.search('\S+=\S+', arg) != None :
         m = re.match('(\S+)=(\S+)', arg)

@@ -46,11 +46,19 @@ from pathlib import Path
 from inspect import currentframe, getframeinfo
 from abc import ABC, abstractmethod
 
-# Usage:  pymake [-d] [-f <makefile.py>] [target ...] [-D<var>[=<val]]
-#   -d              turn on debugging (equivalent to --debug all)
-#   -f              use <makefile.py>.  if none listed, use ./pymakefile.py
-#   -D<var>[=val]   define pymake variable; set pymake variable to val
-#   <target>        if none listed, default is first target in pymmakefile
+def print_usage(invocation) :
+    print(invocation + " usage: " + invocation + " [-h] [-u] [-f <makefile.py>]")
+    print("    -h -u                     print out help/usage message")
+    print("    -f, --makefile            use <makefile.py>. multiple -f switches may be given")
+    print("                              if no  makefile is given, pmake looks for ./Makefile.py or ./makefile.py in that order")
+    print("    -d                        turn on debugging.  equivalent to '--debug all'")
+    print("    --debug [a|b|v|i|j|m|n]   turn on debugging level: all, basic, verbose, implicit, jobs, makefile")
+    print("                              this is meant to loosely follow the GNU Make debug pattern")
+    print("                              multiple --debug switches allowed")
+    print("    -s --silent --quiet       Silent operation: do not print out any messages")
+    print("    -C/--directory <dir>      change to <dir> before searching and reading makefiles")
+    print("    -B/--always-make          always rebuild all targets, no matter the timestamps ")
+    print("    <var>=<val>               creates or overrides a pmake makefile variable named <var> and assigns it the value, <val>. ")
 
 # User controlled debug trace statement for debut of pmake
 #   makefiles.
@@ -81,6 +89,27 @@ def _debug_jobs(text) :
 def _debug_makefile(text) :
     if (__debug_makefile) :
         print(text)
+
+def internal_error(text = "internal error: ") :
+    cf = currentframe()
+    of = cf.f_back
+    fi = getframeinfo(of)
+    filename = fi.filename
+    print("file: " + filename + " line: " + str(of.f_lineno) + " : " + text)
+    return
+
+def pmake_info(text = "") :
+    print(text)
+    return
+
+def pmake_error(text = "error:") :
+    print("error: " +text)
+    return
+
+def pmake_warning(text = "error:") :
+    print("error: " +text)
+    return
+
 
 # ========================================================
 # ========================================================
@@ -122,7 +151,6 @@ def target_already_in_list(l, t) :
             return False
     TRACE("error: internal error")
 
-
 # Recursive function
 # TODO: check for infinite loop
 def construct_build_list(ttb_list) :
@@ -149,7 +177,13 @@ def construct_build_list(ttb_list) :
     return(ttb_list)
 #   TRACE("error: internal error")
 #   sys.exit(1)
-            
+
+def prereqs_newer_than_target(t) :
+    for prereq in t.prerequisites :
+        if os.path.getmtime(prereq) > os.path.getmtime(t.target) :
+            return True
+        continue
+    return False
 
 
 # The main process for building the target(s)
@@ -178,32 +212,37 @@ def make(targets_to_be_built) :
 
     target_found = False
     for ttb in targets_to_be_built :
-        print("ttb: " + ttb)
+        pmake_info("searching for rule to build target, '" + ttb + "' ...")
+        target_found = False
         for t in list_of_defined_targets :
             print("t.target: " + t.target)
             if (ttb == t.target) :
                 target_found = True
-                if t.phony == True :
-                    # Check to see if target is a PHONY.  If it is,  always invoke
-                    #   the recipe.
-                    t.recipe(t)
-                elif always_make :
-                    # Check to see if targets need to be forced made.
-                    t.recipe(t)
-                # Check to see if prerequisites exist.  Then, check to see if target is 
-                #   older than prerequisites.  If it is,
-                #   then invoke the recipe.
-                elif not os.path.isfile(t.target) :
-                    t.recipe(t)
+                if  (t.phony == True) or always_make or not os.path.isfile(t.target) or prereqs_newer_than_target(t) :
+                    ret =  t.recipe(t)
+                    if (ret != 0) :
+                        pmake_error("recipe for target, '" + t.target + "', returned non-zero. return value: " + str(ret))
+                        return ret
+                    debug_basic("target, '" + t.target + "', built correctly")
+                    break
                 else :
-                    for prereq in t.prerequisites :
-                        if os.path.getmtime(prereq) > os.path.getmtime(t.target) :
-                            t.recipe(t)
-                            break
-                break
+                    # Nothing to be done for this target.  Move on to the next
+                    #   target to be built
+                    debug_basic("nothing to be done for target, '" + t.target + "'")
+                    break
+            else :
+                continue
         if target_found == False :
-            print("error: target '" + str(ttb) + "' not specified")
-        target_found = False
+            # Does the ttb (file) exists?  If so, then we're OK. Can
+            #   move on to the next target.
+            if os.path.isfile(ttb) == True :
+                continue
+            else :
+                pmake_error("don't know how to build target '" + ttb + "'")
+                return 1
+        continue
+    return 0
+
 
 def echo(text, append_or_create = ">>", filename = "/dev/null") :
     match append_or_create :
@@ -272,6 +311,10 @@ def addprefix(prefix, name_list) :
 #   a GNU Makefile rule is,  but in a Python class.  It contains a
 #   target,  an optional list of prerequisites and a recipe (implemented
 #   as a Python callback function).
+#
+#   The recipe callback function should return 0 if the recipe succeeds
+#   and should return non-zero if it fails.  This value will be the exit
+#   status of the pmake command.
 class Rule:   # base class
     def dummy(self) :
         print("hello from dummy()")
@@ -313,18 +356,6 @@ def include(makefile) :
 # TODO: call the build/make process
 # ========================================================
 
-def print_usage(invocation) :
-    print(invocation + " usage: " + invocation + " [-h] [-u] [-f <makefile.py>]")
-    print("    -h -u                     print out help/usage message")
-    print("    -f, --makefile            use <makefile.py>. multiple -f switches may be given")
-    print("                              if no  makefile is given, pmake looks for ./Makefile.py or ./makefile.py in that order")
-    print("    -d                        turn on debugging.  equivalent to '--debug all'")
-    print("    --debug [a|b|v|i|j|m|n]   turn on debugging level: all, basic, verbose, implicit, jobs, makefile")
-    print("                              this is meant to loosely follow the GNU Make debug pattern")
-    print("                              multiple --debug switches allowed")
-    print("    -C/--directory <dir>      change to <dir> before searching and reading makefiles")
-    print("    -B/--always-make          always rebuild all targets, no matter the timestamps ")
-    print("    <var>=<val>               creates or overrides a pmake makefile variable named <var> and assigns it the value, <val>. ")
 
 print("Starting up pmake ...")
 list_of_defined_targets     = list()    # List of "class Target"s
@@ -345,6 +376,7 @@ _debug_verbose              = False
 _debug_basic                = False
 changedir                   = "./"
 always_make                 = False
+silent_mode                 = False
 # Process command line arguments
 # For the following code, I couldn't figure out how to
 #   extract the target names from the command line.  They
@@ -436,6 +468,10 @@ for i in range(1, len(sys.argv)) :
         changedir       = True
         changedir_dir   = arg_next
         skip_next       = True
+        
+    elif arg in ('-s', '--silent', '--quiet') :
+        TRACE("processing -s/--silent/--quiet switch")
+        silent_mode     = True
 
     elif arg in ('-B', '--always-make') :
         TRACE("processing -B/--always-make")
@@ -502,7 +538,11 @@ for makefile in makefile_list :
         exec(open(makefile).read())
 
 TRACE("targets_to_be_built before call to make(): " + str(targets_to_be_built))
-make(targets_to_be_built)
+ret = make(targets_to_be_built)
+if (ret != 0) :
+    pmake_error("pmake() failed.  exiting.")
+
+sys.exit(ret)
 
 
 

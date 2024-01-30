@@ -72,7 +72,7 @@ def TRACE(text = "") :
     return
 
 def debug_basic(text) :
-    if (_debug_basic) :
+    if _debug_basic == True :
         print(text)
 
 def debug_verbose(text) :
@@ -156,24 +156,24 @@ def target_already_in_list(l, t) :
 # TODO: check for infinite loop
 def construct_build_list(ttb_list) :
 #    my_ttb_list = ttb_list
-    print("ttb_list: " + str(ttb_list))
+#    print("ttb_list: " + str(ttb_list))
 #    for ttb in my_ttb_list :    # NO.  DO NOT ITERATE LIKE THIS.  this is recursive.
                                 # only look at the tail,  then recurse
     target_class = get_target_class(ttb_list[-1])
     if target_class == None :
         return(ttb_list)
-    print("target_class.target: " + target_class.target)
-    print("target_class.prerequisites: " + str(target_class.prerequisites))
+#    print("target_class.target: " + target_class.target)
+#    print("target_class.prerequisites: " + str(target_class.prerequisites))
     for prereq in target_class.prerequisites :
-        print("prereq: " + str(prereq))
+#        print("prereq: " + str(prereq))
         if target_already_in_list(ttb_list, prereq) :
             return(ttb_list)
             continue    # not taken
         # prereq was not found.  add to list
         ttb_list.append(prereq)
-        TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
+#        TRACE("ttb_list before call to construct_build_list(): " + str(ttb_list))
         ttb_list = construct_build_list(ttb_list)
-        TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
+#        TRACE("ttb_list after call to construct_build_list(): " + str(ttb_list))
     
     return(ttb_list)
 #   TRACE("error: internal error")
@@ -201,13 +201,13 @@ def make(targets_to_be_built) :
         #   targets_to_be_built
         targets_to_be_built.append(list_of_defined_targets[0].target)
 
-    print("targets_to_be_built: " + str(targets_to_be_built))
+#    print("targets_to_be_built: " + str(targets_to_be_built))
     # Process the list of targets to see what needs to be built
     #   and in which order.
-    TRACE("targets_to_be_built: " + str(targets_to_be_built))
+#    TRACE("targets_to_be_built: " + str(targets_to_be_built))
     targets_to_be_built = construct_build_list(targets_to_be_built)
     targets_to_be_built.reverse()
-    TRACE("targets_to_be_built: " + str(targets_to_be_built))
+#    TRACE("targets_to_be_built: " + str(targets_to_be_built))
 
     # Add rules for pattern-match targets.
     for ttb in targets_to_be_built :    # There should be no '%' in these
@@ -242,12 +242,12 @@ def make(targets_to_be_built) :
                 new_target = deepcopy(t)
                 new_target.target = m1g1 + m3g1 + m1g2
                 new_target.prerequisites[0] = m2g1 + m3g1 + m2g2
-                TRACE("adding new target: ttb: " + ttb + " t.target: " + t.target + " new_target.target: " + new_target.target + " new_target.prerequisites: " + str(new_target.prerequisites))
+#                TRACE("adding new target: ttb: " + ttb + " t.target: " + t.target + " new_target.target: " + new_target.target + " new_target.prerequisites: " + str(new_target.prerequisites))
                 list_of_defined_targets.append(new_target)
                 break
             continue
 
-    TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
+#    TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
     indent = '    '
     for t in list_of_defined_targets :
         print(t)
@@ -259,7 +259,7 @@ def make(targets_to_be_built) :
         pmake_info("searching for rule to build target, '" + ttb + "' ...")
         target_found = False
         for t in list_of_defined_targets :
-            print("t.target: " + t.target)
+#            print("t.target: " + t.target)
             if (ttb == t.target) :
                 target_found = True
                 if  (t.phony == True) or always_make or not os.path.isfile(t.target) or prereqs_newer_than_target(t) :
@@ -289,6 +289,7 @@ def make(targets_to_be_built) :
 
 
 def echo(text, append_or_create = ">>", filename = "/dev/null") :
+    TRACE("in echo.  text: " + text)
     match append_or_create :
         case ">>" :
             f = open(filename, "a")
@@ -297,11 +298,14 @@ def echo(text, append_or_create = ">>", filename = "/dev/null") :
             f = open(filename, "w")
             pass
         case _ :
-            
-            pass
+            pmake_error("invalid value for append/create. expected '>>' or '>'. received: " + append_or_create)
+            sys.exit(1)
 
+    TRACE("in echo.")
     f.write(text + "\n")
+    TRACE("in echo.")
     sys.stdout.write(text + "\n")
+    sys.stdout.flush()
 
 # GNU make function, '$(info) always goes to stdout
 def info(text) :
@@ -360,16 +364,16 @@ def addprefix(prefix, name_list) :
 #   and should return non-zero if it fails.  This value will be the exit
 #   status of the pmake command.
 class Rule:   # base class
-    def dummy(self) :
-        print("hello from dummy()")
-        pass
+    def default__recipe(self) :
+        debug_verbose("hello from default_recipe()")
+        return 0
 
     target = "Unnamed"
     prerequisites = list() 
     phony = False 
     target_description = ""
 
-    def __init__(self, target, prerequisites, recipe = dummy, phony = False, description = "") :
+    def __init__(self, target, prerequisites, recipe = default__recipe, phony = False, description = "") :
         self.target = target
         self.phony = phony
         #TODO: add to list of targets
@@ -405,6 +409,15 @@ def include(makefile) :
 
 
 print("Starting up pmake ...")
+
+# Create and setup intrinsic GNU make variable lookalikes
+MAKE        = os.path.realpath(__file__)
+MAKEFLAGS   = ""
+
+
+
+# Internal pmake variables
+# TODO:  How to make private?
 list_of_defined_targets     = list()    # List of "class Target"s
 PHONY                       = True
 targets_to_be_built         = list()    # List of strings,  which are the string names of the targets to be built
@@ -469,6 +482,7 @@ for i in range(1, len(sys.argv)) :
         skip_next = True
 
     elif arg in ('-d') :
+        MAKEFLAGS = MAKEFLAGS + ' -d'
         _debug_makefile = True
         _debug_jobs = True
         _debug_implicit = True
@@ -476,26 +490,35 @@ for i in range(1, len(sys.argv)) :
         _debug_basic = True
 
     elif arg in ('--debug') :
+        MAKEFLAGS = MAKEFLAGS + ' --debug'
         arg_next = sys.argv[i + 1]
+        MAKEFLAGS = MAKEFLAGS + ' ' +arg_next
         match arg_next :
             case "a" :
+                TRACE()
                 _debug_makefile = True
                 _debug_jobs = True
                 _debug_implicit = True
                 _debug_verbose = True
                 _debug_basic = True
             case "b" :
+                TRACE()
                 _debug_basic = True
             case "v" :
+                TRACE()
                 _debug_verbose = True
             case "i" :
+                TRACE()
                 _debug_implicit = True
                 _debug_basic = True      # Per GNU make
             case "j" :
+                TRACE()
                 _debug_jobs = True
             case "m" :
+                TRACE()
                 _debug_makefile = True
             case "n" :
+                TRACE()
                 _debug_makefile = False
                 _debug_jobs = False
                 _debug_implicit = False
@@ -518,21 +541,24 @@ for i in range(1, len(sys.argv)) :
         
     elif arg in ('-s', '--silent', '--quiet') :
         TRACE("processing -s/--silent/--quiet switch")
+        MAKEFLAGS = MAKEFLAGS + ' ' + arg
         silent_mode     = True
 
     elif arg in ('-B', '--always-make') :
         TRACE("processing -B/--always-make")
+        MAKEFLAGS = MAKEFLAGS + ' ' + arg
         always_make = True
 
     elif re.search('\S+=\S+', arg) != None :
         m = re.match('(\S+)=(\S+)', arg)
         TRACE( "setting up a variable from the command line: " + m.group(1) + " = " + m.group(2) )
+        MAKEFLAGS = MAKEFLAGS + ' ' + arg
         exec(m.group(1) + " = " + 'm.group(2)')
 
 
     else :
         # TODO:  fill out
-        TRACE("adding '" + arg + "' to targets_to_be_built")
+#        TRACE("adding '" + arg + "' to targets_to_be_built")
         targets_to_be_built.append(arg)
 
 
@@ -584,13 +610,13 @@ for makefile in makefile_list :
     else :
         exec(open(makefile).read())
 
-TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
+#TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
 indent = '    '
 for t in list_of_defined_targets :
     print(t)
     t.print(indent)
 
-TRACE("targets_to_be_built before call to make(): " + str(targets_to_be_built))
+#TRACE("targets_to_be_built before call to make(): " + str(targets_to_be_built))
 ret = make(targets_to_be_built)
 if (ret != 0) :
     pmake_error("pmake() failed.  exiting.")

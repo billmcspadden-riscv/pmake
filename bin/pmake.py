@@ -45,6 +45,7 @@ import collections      # needed for dequeues
 from pathlib import Path
 from inspect import currentframe, getframeinfo
 from abc import ABC, abstractmethod
+from copy import deepcopy
 
 def print_usage(invocation) :
     print(invocation + " usage: " + invocation + " [-h] [-u] [-f <makefile.py>]")
@@ -208,8 +209,51 @@ def make(targets_to_be_built) :
     targets_to_be_built.reverse()
     TRACE("targets_to_be_built: " + str(targets_to_be_built))
 
-    # Invoke the build recipe for targets
+    # Add rules for pattern-match targets.
+    for ttb in targets_to_be_built :    # There should be no '%' in these
+        for t in list_of_defined_targets :
+            # See if this is a pattern rule.
+            m1 = re.match('(\S*)%(\S*)', t.target)
+            if m1 == None :      # Not a pattern rule
+                continue
+            m1g1 = m1.group(1)
+            m1g2 = m1.group(2)
 
+            m2 = re.match('(\S*)%(\S*)', t.prerequisites[0]) # TODO: iterate thru prereqs???
+            if m2 == None :      # Not a pattern rule.  TODO: might be an error
+                continue
+            m2g1 = m2.group(1)
+            m2g2 = m2.group(2)
+
+            # This appears to be a pattern matching rule.  Let's see if the
+            #   ttb fits the pattern.   If it does,  then create a new, explicit
+            #   rule (via deepcopy()) and put it into 'list_of_defined_targets'
+
+            # Need to escape special RE characters (like '.')
+            #   TODO:  handle the other special characters
+            m1g1_re = m1g1.replace('.', '\.')
+            m1g2_re = m1g2.replace('.', '\.')
+
+            m3 = re.match(m1g1_re + '(\S*)' + m1g2_re, ttb)
+            if (m3 == None) :
+                continue
+            else :
+                m3g1 = m3.group(1)
+                new_target = deepcopy(t)
+                new_target.target = m1g1 + m3g1 + m1g2
+                new_target.prerequisites[0] = m2g1 + m3g1 + m2g2
+                TRACE("adding new target: ttb: " + ttb + " t.target: " + t.target + " new_target.target: " + new_target.target + " new_target.prerequisites: " + str(new_target.prerequisites))
+                list_of_defined_targets.append(new_target)
+                break
+            continue
+
+    TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
+    indent = '    '
+    for t in list_of_defined_targets :
+        print(t)
+        t.print(indent)
+
+    # Invoke the build recipe for targets
     target_found = False
     for ttb in targets_to_be_built :
         pmake_info("searching for rule to build target, '" + ttb + "' ...")
@@ -337,8 +381,11 @@ class Rule:   # base class
     def PHONY(self) :
         self.PHONY = True
 
-    def print(self) :
-        print("target: ", self.target)
+    def print(self, indent = '    ') :
+        print(indent + "target: " + self.target)
+        print(indent + "prerequisites: " + str(self.prerequisites))
+        print(indent + "phony: " + str(self.phony))
+        print(indent + "description: " + self.target_description)
 
 # NOTE: using a function interface does not work in general.  The variables
 #   in the included code, would all be local varables and would not be seen
@@ -536,6 +583,12 @@ for makefile in makefile_list :
         sys.exit(1)
     else :
         exec(open(makefile).read())
+
+TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
+indent = '    '
+for t in list_of_defined_targets :
+    print(t)
+    t.print(indent)
 
 TRACE("targets_to_be_built before call to make(): " + str(targets_to_be_built))
 ret = make(targets_to_be_built)

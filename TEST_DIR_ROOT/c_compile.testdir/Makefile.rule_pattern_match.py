@@ -11,7 +11,7 @@ def ld__recipe(t) :
     echo("building " + t.target)
     cmd = LD + " -o " + t.target + " " + ' '.join(t.prerequisites) 
     echo("cmd: " + cmd)
-    os.system(cmd)
+    return os.system(cmd)
 
 
 Rule("hello", ["hello.o", "a.o", "b.o"], ld__recipe)
@@ -33,7 +33,7 @@ Rule("%.o", [ "%.c" ], cc__recipe)
 def clean__recipe(t) :
     return os.system("rm -f *.o hello")
 
-Rule("clean", [], clean__recipe)
+Rule("clean", [], clean__recipe, phony = True)
 
 
 

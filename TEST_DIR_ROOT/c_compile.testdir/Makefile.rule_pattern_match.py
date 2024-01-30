@@ -24,9 +24,13 @@ def cc__recipe(t) :
     return os.system(cmd)
 
 
+# The following individual rules ....
+
 #Rule("hello.o", [ "hello.c" ], cc__recipe)
 #Rule("a.o", [ "a.c" ], cc__recipe)
 #Rule("b.o", [ "b.c" ], cc__recipe)
+
+# ... get replace with this one  pattern rule
 
 Rule("%.o", [ "%.c" ], cc__recipe)
 

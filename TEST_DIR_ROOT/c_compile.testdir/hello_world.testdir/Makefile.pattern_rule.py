@@ -57,19 +57,23 @@ Rule("clean", [], clean__recipe, phony = True)
 
 def test__recipe(t) :
     echo ("building " + t.target)
-    cmd = MAKE + " -f Makefile.pattern_rule.py clean" + MAKEFLAGS
+    # TODO: Need to support MAKELEVEL and MAKEFILE_LIST as well
+    #       Should these be handled by env vars rather than by command line?
+    #       I don't like that the user, writing Makefile.py, has to support 
+    #       these.
+    cmd = MAKE + " -f Makefile.pattern_rule.py clean"
     echo ("executing: " + cmd)
     ret = os.system(cmd)
     if ret != 0 :
         return ret
 
-    cmd = MAKE + " -f Makefile.pattern_rule.py build" + MAKEFLAGS
+    cmd = MAKE + " -f Makefile.pattern_rule.py build"
     echo ("executing: " + cmd)
     ret = os.system(cmd)
     if ret != 0 :
         return ret
 
-    cmd = MAKE + " -f Makefile.pattern_rule.py run" + MAKEFLAGS
+    cmd = MAKE + " -f Makefile.pattern_rule.py run"
     echo ("executing: " + cmd)
     ret = os.system(cmd)
     if ret != 0 :

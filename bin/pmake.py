@@ -63,6 +63,12 @@ def print_usage(invocation) :
 
 # User controlled debug trace statement for debut of pmake
 #   makefiles.
+def print_pmake_rules(l) :
+    indent = '    '
+    for t in list_of_defined_targets :
+        print(t)
+        t.print(indent)
+
 def TRACE(text = "") :
     cf = currentframe()
     of = cf.f_back
@@ -247,12 +253,6 @@ def make(targets_to_be_built) :
                 break
             continue
 
-#    TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
-    indent = '    '
-    for t in list_of_defined_targets :
-        print(t)
-        t.print(indent)
-
     # Invoke the build recipe for targets
     target_found = False
     for ttb in targets_to_be_built :
@@ -289,7 +289,7 @@ def make(targets_to_be_built) :
 
 
 def echo(text, append_or_create = ">>", filename = "/dev/null") :
-    TRACE("in echo.  text: " + text)
+#    TRACE("in echo.  text: " + text)
     match append_or_create :
         case ">>" :
             f = open(filename, "a")
@@ -301,9 +301,9 @@ def echo(text, append_or_create = ">>", filename = "/dev/null") :
             pmake_error("invalid value for append/create. expected '>>' or '>'. received: " + append_or_create)
             sys.exit(1)
 
-    TRACE("in echo.")
+#    TRACE("in echo.")
     f.write(text + "\n")
-    TRACE("in echo.")
+#    TRACE("in echo.")
     sys.stdout.write(text + "\n")
     sys.stdout.flush()
 
@@ -388,6 +388,7 @@ class Rule:   # base class
     def print(self, indent = '    ') :
         print(indent + "target: " + self.target)
         print(indent + "prerequisites: " + str(self.prerequisites))
+        print(indent + "recipe: " + self.recipe.__name__)
         print(indent + "phony: " + str(self.phony))
         print(indent + "description: " + self.target_description)
 
@@ -407,13 +408,18 @@ def include(makefile) :
 # TODO: call the build/make process
 # ========================================================
 
-
-print("Starting up pmake ...")
+# ===================================================================================
+# Start of execution
 
 # Create and setup intrinsic GNU make variable lookalikes
-MAKE        = os.path.realpath(__file__)
-MAKEFLAGS   = ""
+MAKE            = os.environ.get("MAKE", os.path.realpath(__file__))
+make_basename   = os.path.basename(MAKE)
+MAKEFLAGS       = os.environ.get("MAKEFLAGS", "")
+ENV_MAKELEVEL   = os.environ.get("MAKELEVEL", "-1")
+MAKELEVEL       = int(ENV_MAKELEVEL) + 1
+os.environ["MAKELEVEL"] = str(MAKELEVEL)
 
+print("Starting up " + make_basename + " (make level: " + str(MAKELEVEL) + ")")
 
 
 # Internal pmake variables
@@ -473,7 +479,7 @@ for i in range(1, len(sys.argv)) :
         continue
     arg = sys.argv[i]
 #    TRACE("i: " + str(i) + " arg: " + arg)
-    if (arg == '-h') or (arg == '-u') :
+    if arg in ('-h', '-u') :
         print_usage(sys.argv[0])
         sys.exit(0)
     elif arg in ('-f', "--makefile") :
@@ -492,33 +498,26 @@ for i in range(1, len(sys.argv)) :
     elif arg in ('--debug') :
         MAKEFLAGS = MAKEFLAGS + ' --debug'
         arg_next = sys.argv[i + 1]
-        MAKEFLAGS = MAKEFLAGS + ' ' +arg_next
+        MAKEFLAGS = MAKEFLAGS + ' ' + arg_next
         match arg_next :
             case "a" :
-                TRACE()
                 _debug_makefile = True
                 _debug_jobs = True
                 _debug_implicit = True
                 _debug_verbose = True
                 _debug_basic = True
             case "b" :
-                TRACE()
                 _debug_basic = True
             case "v" :
-                TRACE()
                 _debug_verbose = True
             case "i" :
-                TRACE()
                 _debug_implicit = True
                 _debug_basic = True      # Per GNU make
             case "j" :
-                TRACE()
                 _debug_jobs = True
             case "m" :
-                TRACE()
                 _debug_makefile = True
             case "n" :
-                TRACE()
                 _debug_makefile = False
                 _debug_jobs = False
                 _debug_implicit = False
@@ -530,7 +529,6 @@ for i in range(1, len(sys.argv)) :
         skip_next = True
 
     elif arg in ('-C', '--directory') :
-        TRACE("processing -C/--directory switch")
         arg_next = sys.argv[i + 1]
         if os.path.isdir(arg_next) == False :
             print("error: directory, " + arg_next + ", does not exist")
@@ -540,22 +538,20 @@ for i in range(1, len(sys.argv)) :
         skip_next       = True
         
     elif arg in ('-s', '--silent', '--quiet') :
-        TRACE("processing -s/--silent/--quiet switch")
         MAKEFLAGS = MAKEFLAGS + ' ' + arg
         silent_mode     = True
 
     elif arg in ('-B', '--always-make') :
-        TRACE("processing -B/--always-make")
         MAKEFLAGS = MAKEFLAGS + ' ' + arg
         always_make = True
 
+    # Look for "VAR=VAL" command line arguments (setting of python variable from command line)
     elif re.search('\S+=\S+', arg) != None :
         m = re.match('(\S+)=(\S+)', arg)
-        TRACE( "setting up a variable from the command line: " + m.group(1) + " = " + m.group(2) )
         MAKEFLAGS = MAKEFLAGS + ' ' + arg
         exec(m.group(1) + " = " + 'm.group(2)')
 
-
+    # If it doesn't fit any of the other  switches, assume that the argument is a target
     else :
         # TODO:  fill out
 #        TRACE("adding '" + arg + "' to targets_to_be_built")
@@ -603,18 +599,20 @@ for makefile in makefile_list :
             pass
     else :
         pass
-    debug_verbose("executing makefile, " + makefile + " ...")
+    debug_basic("executing makefile, " + makefile + " ...")
     if os.path.isfile(makefile) == False :
-        print("error: makefile, " + makefile + ", does not exist")
+        pmake_error("error: makefile, " + makefile + ", does not exist")
         sys.exit(1)
     else :
         exec(open(makefile).read())
 
-#TRACE("list_of_defined_targets: " + str(list_of_defined_targets))
-indent = '    '
-for t in list_of_defined_targets :
-    print(t)
-    t.print(indent)
+    if _debug_verbose : print_pmake_rules(list_of_defined_targets) 
+
+def print_pmake_rules(l) :
+    indent = '    '
+    for t in list_of_defined_targets :
+        print(t)
+        t.print(indent)
 
 #TRACE("targets_to_be_built before call to make(): " + str(targets_to_be_built))
 ret = make(targets_to_be_built)

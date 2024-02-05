@@ -315,8 +315,39 @@ def info(text) :
 
 # ========================================================
 # Functions that duplicate make functions.
+
 def wildcard(s) :
-    return glob.glob(s)
+    return ' '.join(glob.glob(s))
+
+# Takes string of space-separated names
+# Returns string of space-separated realpath names
+def realpath(names) :
+    l = list()
+    names_list = names.split()
+    for name in names_list :
+        l.append(os.path.realpath(name))
+    s = ' '.join(l)
+    return s
+
+# Takes string of space-separated names
+# Returns string of space-separated realpath names
+def abspath(names) :
+    l = list()
+    names_list = names.split()
+    for name in names_list :
+        l.append(os.path.abspath(name))
+    s = ' '.join(l)
+    return s
+
+# Takes old text and replaces it with new text in the string text
+def subst(old, new, text) :
+    t = text.replace(old, new)
+    return t
+
+def strip(string) :
+    s = string.strip()
+    s = ' '.join(string.split())
+    return s
 
 def patsubst(pattern, replacement, text) :
     l = list()
@@ -332,21 +363,24 @@ def patsubst(pattern, replacement, text) :
         m3 = re.match(m1g1 + '(\S*)' + m1g2, s)
         m3g1 = m3.group(1)
         l.append(m2g1 + m3g1 + m2g2)
+    s = ' '.join(l)
+    return s
 
-    return l
-
-def addsuffix(suffix, name_list) :
+def addsuffix(suffix, names) :
     l = list()
-    for name in name_list :
+    names_list = names.split()
+    for name in names_list :
         l.append(name + suffix)
-    return l
+    s = ' '.join(l)
+    return s
 
-def addprefix(prefix, name_list) :
+def addprefix(prefix, names) :
     l = list()
-    for name in name_list :
+    names_list = names.split()
+    for name in names_list :
         l.append(prefix + name)
-    return l
-
+    s = ' '.join(l)
+    return s
 
 # Functions that duplicate make functions.
 # ========================================================

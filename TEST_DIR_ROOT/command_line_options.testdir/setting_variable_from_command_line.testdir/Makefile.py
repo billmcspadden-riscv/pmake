@@ -63,12 +63,13 @@ if COMMAND_LINE_VARIABLE != ENV_PMAKE_CMD_LINE_VAR_VAL :
 
 
 def dummy(t) :
-    True
+    return 0
 
 Rule("default", [], dummy, PHONY)
 
 def access_command_line_variable_from_within_rule__recipe(t) :
     echo("COMAND_LINE_VARIABLE: " + COMMAND_LINE_VARIABLE)
+    return 0
 
 Rule(
     "access_command_line_variable_from_within_rule",

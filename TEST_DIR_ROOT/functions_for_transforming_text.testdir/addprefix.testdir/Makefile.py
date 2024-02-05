@@ -18,7 +18,7 @@ for i in range(0, len(l)) :
 Path('./test.passed').touch()
 
 def dummy(t) :
-    True
+    return 0
 
 Rule("default", [], dummy, PHONY)
 
@@ -30,9 +30,10 @@ def addprefix_in_a_Rule__recipe(t) :
     for i in range(0, len(l)) :
         if l_ret[i] != "goo/" + l[i] :
             echo("error: addprefix incorrect().  expected: 'goo/" + l[i] + "' received: '" + l_ret[i] + "'")
-            sys.exit(1)
+            return 1
         else :
             pass
+    return 0
 
 Rule(
     "addprefix_in_a_Rule", 

@@ -103,7 +103,7 @@ class Rule:   # base class
 
 The main goals of pmake are:
 
-1. Exclusivelyu use python in the make specification file (usually referred to as "the makefile").
+1. Exclusively use python in the make specification file (usually referred to as "the makefile").
 1. Follow the "target - prerequistes - recipe" pattern that most versions of make use.
 1. Support common functions and variables used by GNU make so that learning how to 
 write a pmake makefile (usually named 'Makefile.py') is not too ornerous.  For example,

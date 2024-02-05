@@ -1,7 +1,7 @@
 # pmake
 make replacement using python
 
-'pmake' is intended as a simple replacement tool for GNU make. It uses GNU make
+'pmake' is intended as a simple lightweight replacement for GNU make. It uses GNU make
 as a pattern for a build tool.  GNU make has been used for decades but
 it has its limitations.
 
@@ -57,7 +57,49 @@ Rule("%.o", "%.c", c_compile__recipe)
 
 ```
 
-The main hook in this methodology, is the python 
+The main hook in this methodology, is the python  class, Rule.
+
+```
+# Class: Rule
+#   This is the basic class for pmake.  It is meant to emcompass what
+#   a GNU Makefile rule is,  but in a Python class.  It contains a
+#   target,  an optional list of prerequisites and a recipe (implemented
+#   as a Python callback function).
+#
+#   The recipe callback function should return 0 if the recipe succeeds
+#   and should return non-zero if it fails.  This value will be the exit
+#   status of the pmake command.
+class Rule:   # base class
+    def default__recipe(self) :
+        debug_verbose("hello from default_recipe()")
+        return 0
+
+    target = "Unnamed"
+    prerequisites = list() 
+    phony = False 
+    target_description = ""
+
+    def __init__(self, target, prerequisites, recipe = default__recipe, phony = False, description = "") :
+        self.target = target
+        self.phony = phony
+        #TODO: add to list of targets
+        self.prerequisites = prerequisites
+        self.recipe = recipe
+        list_of_defined_targets.append(self)
+        self.target_description = description
+
+    def PHONY(self) :
+        self.PHONY = True
+
+    def print(self, indent = '    ') :
+        print(indent + "target: " + self.target)
+        print(indent + "prerequisites: " + str(self.prerequisites))
+        print(indent + "recipe: " + self.recipe.__name__)
+        print(indent + "phony: " + str(self.phony))
+        print(indent + "description: " + self.target_description)
+
+
+```
 
 The main goals of pmake are:
 
@@ -91,7 +133,7 @@ There will be lots of quotes in the Makefile.py file.
 
 ## Non-replicated features of GNU make  (weaknesses of GNU make)
 
-One of the more confusing aspects of GNU make, is that there are two types of
+One of the more confusing aspects of GNU make, is that there are several types of
 variables that are supported:
 
 - "recursively expanded variables" of the sort: `FOO = hello.c`
